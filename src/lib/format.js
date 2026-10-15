@@ -22,6 +22,18 @@ export function pace(mps) {
   return s === 60 ? `${m + 1}:00 /km` : `${m}:${String(s).padStart(2, '0')} /km`;
 }
 
+/** Seconds per km -> "m:ss" (no unit). */
+export function paceSec(s) {
+  if (!s || s <= 0) return '–';
+  let m = Math.floor(s / 60);
+  let sec = Math.round(s % 60);
+  if (sec === 60) {
+    m += 1;
+    sec = 0;
+  }
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
 export const kmh = (mps) => (mps == null ? '–' : `${(mps * 3.6).toFixed(1)} km/h`);
 
 export const shortDate = (iso) =>

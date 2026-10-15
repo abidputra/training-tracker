@@ -9,6 +9,7 @@ Endpoints
   POST   /garmin/connect       user JWT   {email, password} -> connected | mfa_required
   POST   /garmin/mfa           user JWT   {code}            -> connected
   POST   /garmin/sync          user JWT   manual "sync now" (60s cooldown)
+  POST   /garmin/backfill      user JWT   import full history in the background (202)
   DELETE /garmin/disconnect    user JWT   deletes tokens + Garmin activities
   POST   /internal/sync-all    X-Service-Secret (pg_cron) -> 202, runs in background
   GET    /health
@@ -162,6 +163,27 @@ def sync_now(user_id: str = Depends(db.current_user_id)) -> dict:
             return {"status": "recent", "imported": 0}
         _last_attempt[user_id] = now
     return sync.sync_connection(conn)
+
+
+@app.post("/garmin/backfill", status_code=202)
+def backfill(background: BackgroundTasks, user_id: str = Depends(db.current_user_id)) -> dict:
+    """
+    Imports the user's ENTIRE Garmin history. Returns immediately; pages are
+    saved as they arrive, so activities show up live in the app while it runs.
+    """
+    rows = db.select(
+        "connections",
+        {"user_id": f"eq.{user_id}", "provider": "eq.garmin", "select": "id,user_id,status"},
+    )
+    if not rows:
+        raise HTTPException(404, "Garmin is not connected.")
+    conn = rows[0]
+    if conn["status"] == "needs_reauth":
+        raise HTTPException(409, "Garmin session expired. Please log in again.")
+    if sync.is_busy(conn["id"]):
+        raise HTTPException(409, "A sync is already running. Try again in a minute.")
+    background.add_task(sync.sync_connection, conn, 20, True)
+    return {"status": "started"}
 
 
 @app.delete("/garmin/disconnect")

@@ -29,6 +29,12 @@ log = logging.getLogger("garmin.sync")
 # Prevents two overlapping "sync everyone" runs if cron fires while one is busy.
 _sync_all_lock = threading.Lock()
 
+# Full-history import: pages of 100, a pause between pages, and a hard cap
+# (200 pages = 20,000 activities) so a misbehaving API can't loop forever.
+BACKFILL_PAGE = 100
+BACKFILL_PAUSE_S = 2.0
+BACKFILL_MAX_PAGES = 200
+
 # Connections being synced right now. Stops a manual "sync now" and the cron
 # run from refreshing and overwriting the same token blob at the same time.
 _active: set[str] = set()
@@ -103,9 +109,15 @@ def _set_status(connection_id: str, status: str, error: str | None, synced: bool
     db.patch("connections", {"id": f"eq.{connection_id}"}, values)
 
 
-def sync_connection(conn: dict, limit: int = 20) -> dict:
+def is_busy(connection_id: str) -> bool:
+    with _active_lock:
+        return connection_id in _active
+
+
+def sync_connection(conn: dict, limit: int = 20, everything: bool = False) -> dict:
     """
     Pulls the latest `limit` activities for one connection and upserts them.
+    With `everything=True` it pages through the user's entire Garmin history.
 
     Returns {"status": "active"|"needs_reauth"|"error", "imported": int, "error": str|None}.
     Never raises: failures are recorded on the connection row.
@@ -116,7 +128,7 @@ def sync_connection(conn: dict, limit: int = 20) -> dict:
             return {"status": "active", "imported": 0, "error": None}
         _active.add(cid)
     try:
-        return _sync_connection(cid, uid, limit)
+        return _sync_connection(cid, uid, limit, everything)
     finally:
         with _active_lock:
             _active.discard(cid)
@@ -141,7 +153,7 @@ def _login_from_tokens(token_json: str) -> Garmin:
     return g
 
 
-def _sync_connection(cid: str, uid: str, limit: int) -> dict:
+def _sync_connection(cid: str, uid: str, limit: int, everything: bool = False) -> dict:
     try:
         stored = db.select("provider_tokens", {"connection_id": f"eq.{cid}", "select": "token_blob"})
         if not stored or not stored[0].get("token_blob"):
@@ -150,16 +162,29 @@ def _sync_connection(cid: str, uid: str, limit: int) -> dict:
 
         g = _login_from_tokens(token_json)  # refreshes the access token if needed
 
-        raw = g.get_activities(0, limit)
-        if isinstance(raw, dict):  # defensive: some versions wrap the list
-            raw = raw.get("activities", [])
-        candidates = [a for a in raw if a.get("activityId")]
-        rows = [r for r in (map_activity(uid, a) for a in candidates) if r]
-        skipped = len(candidates) - len(rows)
-        if skipped:
-            log.warning("skipped %d garmin activities without a UTC start time", skipped)
-        if rows:
-            db.upsert("activities", rows, on_conflict="user_id,provider,external_id")
+        imported = 0
+        start = 0
+        page = BACKFILL_PAGE if everything else limit
+        for _ in range(BACKFILL_MAX_PAGES if everything else 1):
+            raw = g.get_activities(start, page)
+            if isinstance(raw, dict):  # defensive: some versions wrap the list
+                raw = raw.get("activities", [])
+            if not raw:
+                break
+            candidates = [a for a in raw if a.get("activityId")]
+            rows = [r for r in (map_activity(uid, a) for a in candidates) if r]
+            skipped = len(candidates) - len(rows)
+            if skipped:
+                log.warning("skipped %d garmin activities without a UTC start time", skipped)
+            if rows:
+                # Saved page by page, so a long backfill shows up live and a
+                # rate limit halfway through keeps what was already imported.
+                db.upsert("activities", rows, on_conflict="user_id,provider,external_id")
+                imported += len(rows)
+            if not everything or len(raw) < page:
+                break
+            start += page
+            time.sleep(BACKFILL_PAUSE_S)  # be gentle with Garmin
 
         # The library may have refreshed the session; keep the newest tokens.
         fresh = g.client.dumps()
@@ -167,7 +192,7 @@ def _sync_connection(cid: str, uid: str, limit: int) -> dict:
             db.patch("provider_tokens", {"connection_id": f"eq.{cid}"}, {"token_blob": crypto.encrypt(fresh)})
 
         _set_status(cid, "active", None, synced=True)
-        return {"status": "active", "imported": len(rows), "error": None}
+        return {"status": "active", "imported": imported, "error": None}
 
     except GarminConnectAuthenticationError:
         msg = "Garmin session expired. Please log in to Garmin again."

@@ -11,7 +11,22 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 
-const LIMIT = 100;
+const LIMIT = 500;
+
+// Explicit columns + a few JSON fields lifted out of `raw`, so we don't pull
+// every full Garmin/Strava payload to the browser just for the analysis.
+const COLUMNS = [
+  'id', 'provider', 'sport_type', 'name', 'start_time',
+  'distance_m', 'moving_time_s', 'avg_hr', 'max_hr', 'avg_speed_mps',
+  'cadence:raw->averageRunningCadenceInStepsPerMinute',
+  'stride:raw->avgStrideLength',
+  'vosc:raw->avgVerticalOscillation',
+  'gct:raw->avgGroundContactTime',
+  'vratio:raw->avgVerticalRatio',
+  'power:raw->avgPower',
+  'vo2max:raw->vO2MaxValue',
+  'te:raw->aerobicTrainingEffect',
+].join(',');
 const byNewest = (a, b) => new Date(b.start_time) - new Date(a.start_time);
 
 export function useActivities(userId) {
@@ -24,7 +39,7 @@ export function useActivities(userId) {
 
     supabase
       .from('activities')
-      .select('*')
+      .select(COLUMNS)
       .order('start_time', { ascending: false })
       .limit(LIMIT)
       .then(({ data }) => {

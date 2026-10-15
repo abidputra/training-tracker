@@ -1,7 +1,7 @@
 /**
  * App shell (single page).
  *   signed out  -> AuthForm
- *   signed in   -> Connections card + live ActivityList
+ *   signed in   -> analysis Dashboard (live) + Connections card
  *
  * Also finishes the Strava OAuth round trip: Strava redirects back to
  * "/?code=...&scope=...&state=..."; we verify `state`, send the code to the
@@ -15,7 +15,7 @@ import { useActivities } from './hooks/useActivities.js';
 import { useConnections } from './hooks/useConnections.js';
 import AuthForm from './components/AuthForm.jsx';
 import Connections from './components/Connections.jsx';
-import ActivityList from './components/ActivityList.jsx';
+import Dashboard from './components/Dashboard.jsx';
 
 export default function App() {
   const session = useSession();
@@ -79,12 +79,12 @@ export default function App() {
       )}
 
       <div className="space-y-6">
-        <Connections connections={connections} onNotice={setNotice} onChanged={reload} />
-        <ActivityList
+        <Dashboard
           activities={activities}
           loading={loading}
           hasConnection={Object.keys(connections).length > 0}
         />
+        <Connections connections={connections} onNotice={setNotice} onChanged={reload} />
       </div>
     </div>
   );
