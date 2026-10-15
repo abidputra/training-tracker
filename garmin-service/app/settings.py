@@ -38,6 +38,11 @@ SERVICE_SECRET = _required("SERVICE_SECRET")
 STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID", "").strip()
 STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "").strip()
 
+# Optional regex for extra allowed origins, e.g. every Vercel deployment URL of
+# your project (each push gets its own "<project>-<hash>-<team>.vercel.app").
+# Keep your team slug in it: only your Vercel account can create those hosts.
+ALLOWED_ORIGIN_REGEX = os.environ.get("ALLOWED_ORIGIN_REGEX", "").strip() or None
+
 # Comma-separated list of browser origins allowed to call this service.
 ALLOWED_ORIGINS = [
     o.strip().rstrip("/")  # browsers send "https://host" with no trailing slash

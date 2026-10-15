@@ -23,12 +23,14 @@ this process's memory (the library keeps the pending MFA state on the Garmin
 client object), so /garmin/connect and /garmin/mfa must hit the same process.
 """
 import logging
+import re
 import secrets
 import threading
 import time
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from garminconnect import (
     Garmin,
     GarminConnectAuthenticationError,
@@ -39,7 +41,7 @@ from pydantic import BaseModel
 import httpx
 
 from . import db, strava, sync
-from .settings import ALLOWED_ORIGINS, SERVICE_SECRET
+from .settings import ALLOWED_ORIGIN_REGEX, ALLOWED_ORIGINS, SERVICE_SECRET
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("garmin.api")
@@ -48,6 +50,7 @@ app = FastAPI(title="Garmin sync service")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
     # The deployed (https) frontend may call this service on http://localhost.
@@ -55,6 +58,33 @@ app.add_middleware(
     # succeed. Origins are still restricted by the allow-list above.
     allow_private_network=True,
 )
+
+
+
+@app.exception_handler(httpx.TransportError)
+async def network_error(request, exc):
+    """
+    Supabase unreachable even after a retry. Answer with a JSON 503 instead of
+    crashing: an unhandled 500 carries no CORS headers, so the browser would
+    only show the misleading "Could not reach the Garmin service".
+    """
+    log.warning("network error talking to Supabase: %s", type(exc).__name__)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Network problem reaching the database. Please try again."},
+    )
+
+
+@app.middleware("http")
+async def log_rejected_origin(request, call_next):
+    """Names the origin when CORS will reject it (the browser only says 'failed')."""
+    origin = request.headers.get("origin")
+    if origin and origin not in ALLOWED_ORIGINS and not (
+        ALLOWED_ORIGIN_REGEX and re.fullmatch(ALLOWED_ORIGIN_REGEX, origin)
+    ):
+        log.warning("CORS: origin %r is not allowed (ALLOWED_ORIGINS %s)", origin, ALLOWED_ORIGINS)
+    return await call_next(request)
+
 
 # user_id -> (Garmin client awaiting MFA, client_state, created_at)
 _pending: dict[str, tuple[Garmin, object, float]] = {}

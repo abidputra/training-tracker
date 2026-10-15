@@ -4,6 +4,8 @@ Tiny Supabase (PostgREST) client using the service role key.
 We talk to PostgREST over plain HTTP instead of pulling in a full SDK: it is
 ~40 lines, easy to reason about, and has no extra dependency to break.
 """
+import time
+
 import httpx
 from fastapi import Header, HTTPException
 
@@ -19,9 +21,22 @@ _rest = httpx.Client(
 )
 
 
+def _retry(fn, *args, **kwargs) -> httpx.Response:
+    """
+    Runs an HTTP call, retrying once after a short pause on a dropped or
+    refused connection (common on flaky / corporate networks). A second
+    failure propagates and main.py turns it into a clean 503.
+    """
+    try:
+        return fn(*args, **kwargs)
+    except httpx.TransportError:
+        time.sleep(0.5)
+        return fn(*args, **kwargs)
+
+
 def select(table: str, params: dict) -> list[dict]:
     """GET rows. `params` are PostgREST filters, e.g. {"user_id": "eq.<uuid>", "select": "id"}."""
-    r = _rest.get(f"/{table}", params=params)
+    r = _retry(_rest.get, f"/{table}", params=params)
     r.raise_for_status()
     return r.json()
 
@@ -32,7 +47,8 @@ def upsert(table: str, rows: list[dict] | dict, on_conflict: str, returning: boo
     keys (PostgREST bulk rule); our mappers guarantee that.
     """
     prefer = "resolution=merge-duplicates," + ("return=representation" if returning else "return=minimal")
-    r = _rest.post(
+    r = _retry(
+        _rest.post,
         f"/{table}",
         params={"on_conflict": on_conflict},
         json=rows,
@@ -44,13 +60,13 @@ def upsert(table: str, rows: list[dict] | dict, on_conflict: str, returning: boo
 
 def patch(table: str, params: dict, values: dict) -> None:
     """UPDATE rows matching the filters."""
-    r = _rest.patch(f"/{table}", params=params, json=values)
+    r = _retry(_rest.patch, f"/{table}", params=params, json=values)
     r.raise_for_status()
 
 
 def delete(table: str, params: dict) -> None:
     """DELETE rows matching the filters."""
-    r = _rest.delete(f"/{table}", params=params)
+    r = _retry(_rest.delete, f"/{table}", params=params)
     r.raise_for_status()
 
 
@@ -63,7 +79,8 @@ def current_user_id(authorization: str | None = Header(default=None)) -> str:
     """
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
-    r = httpx.get(
+    r = _retry(
+        httpx.get,
         f"{SUPABASE_URL}/auth/v1/user",
         headers={"apikey": SUPABASE_ANON_KEY, "Authorization": authorization},
         timeout=10,
