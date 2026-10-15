@@ -5,11 +5,11 @@
  *
  * Also finishes the Strava OAuth round trip: Strava redirects back to
  * "/?code=...&scope=...&state=..."; we verify `state`, send the code to the
- * strava-connect Edge Function (which holds the client secret), and clean the URL.
+ * backend /strava/connect (which holds the client secret), and clean the URL.
  */
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
-import { edgeFn } from './lib/api.js';
+import { garminApi } from './lib/api.js';
 import { useSession } from './hooks/useSession.js';
 import { useActivities } from './hooks/useActivities.js';
 import { useConnections } from './hooks/useConnections.js';
@@ -47,9 +47,12 @@ export default function App() {
       return;
     }
 
-    edgeFn('strava-connect', { code, scope: q.get('scope') ?? '' })
+    garminApi('/strava/connect', { body: { code, scope: q.get('scope') ?? '' } })
       .then((res) => {
-        setNotice({ type: 'info', text: `Strava connected, ${res.imported} activities imported.` });
+        setNotice({
+          type: 'info',
+          text: `Strava connected, ${res.imported} activities imported. Older history is importing in the background.`,
+        });
         reload();
       })
       .catch((e) => setNotice({ type: 'error', text: e.message }));

@@ -26,24 +26,46 @@ function toRun(a) {
     pace: speed ? 1000 / speed : null, // seconds per km
     hr: num(a.avg_hr),
     maxHr: num(a.max_hr),
-    cadence: num(a.cadence ?? raw.averageRunningCadenceInStepsPerMinute),
+    provider: a.provider,
+    cadence: num(
+      a.cadence ??
+        raw.averageRunningCadenceInStepsPerMinute ??
+        (num(a.scadence ?? raw.average_cadence) != null ? (a.scadence ?? raw.average_cadence) * 2 : null),
+    ),
     stride: num(a.stride ?? raw.avgStrideLength), // cm
     vosc: num(a.vosc ?? raw.avgVerticalOscillation), // cm
     gct: num(a.gct ?? raw.avgGroundContactTime), // ms
     vratio: num(a.vratio ?? raw.avgVerticalRatio), // %
-    power: num(a.power ?? raw.avgPower), // W
+    power: num(a.power ?? raw.avgPower ?? a.swatts ?? raw.average_watts), // W
     vo2max: num(a.vo2max ?? raw.vO2MaxValue),
     te: num(a.te ?? raw.aerobicTrainingEffect),
   };
 }
 
-/** Running activities only, sanity-filtered, oldest first. */
+/**
+ * Drops Strava runs that Garmin already has (the same run synced to both).
+ * Same run = starts within 5 minutes and distance within 10%. Garmin wins
+ * because it carries running dynamics; Strava rows that Garmin lacks (older
+ * history, phone runs) are kept with whatever fields Strava provides.
+ */
+function dedupe(runs) {
+  const garmin = runs.filter((r) => r.provider === 'garmin');
+  if (garmin.length === 0) return runs;
+  return runs.filter((r) => {
+    if (r.provider !== 'strava') return true;
+    return !garmin.some(
+      (g) => Math.abs(g.t - r.t) <= 5 * 60_000 && Math.abs(g.distance - r.distance) <= 0.1 * g.distance,
+    );
+  });
+}
+
+/** Running activities only, sanity-filtered, de-duplicated, oldest first. */
 export function getRuns(activities) {
-  return activities
+  const runs = activities
     .filter((a) => RUN_TYPES.has((a.sport_type ?? '').toLowerCase()))
     .map(toRun)
-    .filter((r) => r.distance >= 1000 && r.speed >= 1.5 && r.speed <= 8 && !Number.isNaN(r.t))
-    .sort((a, b) => a.t - b.t);
+    .filter((r) => r.distance >= 1000 && r.speed >= 1.5 && r.speed <= 8 && !Number.isNaN(r.t));
+  return dedupe(runs).sort((a, b) => a.t - b.t);
 }
 
 // --- Daniels VDOT ------------------------------------------------------------

@@ -30,6 +30,9 @@ const COLUMNS = [
   'power:raw->avgPower',
   'vo2max:raw->vO2MaxValue',
   'te:raw->aerobicTrainingEffect',
+  // Strava summaries: cadence is per leg (x2 = steps/min), watts if a power meter was used
+  'scadence:raw->average_cadence',
+  'swatts:raw->average_watts',
 ].join(',');
 
 const byNewest = (a, b) => new Date(b.start_time) - new Date(a.start_time);

@@ -7,7 +7,7 @@
  *   error          -> temporary sync problem (retries automatically)
  */
 import { useState } from 'react';
-import { edgeFn, garminApi, startStravaOAuth } from '../lib/api.js';
+import { garminApi, startStravaOAuth } from '../lib/api.js';
 import { timeAgo } from '../lib/format.js';
 import GarminForm from './GarminForm.jsx';
 
@@ -23,7 +23,7 @@ const btnPrimary = 'rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium te
 
 export default function Connections({ connections, onNotice, onChanged }) {
   const [showGarmin, setShowGarmin] = useState(false);
-  const [busy, setBusy] = useState(null); // 'garmin-sync' | 'garmin-all' | 'strava-off' | 'garmin-off'
+  const [busy, setBusy] = useState(null); // 'garmin-sync' | 'garmin-all' | 'garmin-off' | 'strava-all' | 'strava-off'
   const strava = connections.strava;
   const garmin = connections.garmin;
   const garminNeedsLogin = !garmin || garmin.status === 'needs_reauth';
@@ -59,14 +59,28 @@ export default function Connections({ connections, onNotice, onChanged }) {
             {strava ? 'Reconnect' : 'Connect'}
           </button>
         ) : (
-          <button
-            disabled={busy === 'strava-off'}
-            className={btn}
-            onClick={() => confirmDisconnect('Strava') &&
-              run('strava-off', () => edgeFn('strava-disconnect'), 'Strava disconnected.')}
-          >
-            Disconnect
-          </button>
+          <div className="flex gap-2">
+            <button
+              disabled={busy === 'strava-all'}
+              className={btn}
+              title="Imports your entire Strava history in the background"
+              onClick={() => run(
+                'strava-all',
+                () => garminApi('/strava/backfill'),
+                'Importing your Strava history. Runs appear as they arrive, this can take a few minutes.',
+              )}
+            >
+              {busy === 'strava-all' ? 'Starting…' : 'Import all'}
+            </button>
+            <button
+              disabled={busy === 'strava-off'}
+              className={btn}
+              onClick={() => confirmDisconnect('Strava') &&
+                run('strava-off', () => garminApi('/strava/disconnect', { method: 'DELETE' }), 'Strava disconnected.')}
+            >
+              Disconnect
+            </button>
+          </div>
         )}
       </div>
 

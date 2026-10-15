@@ -32,6 +32,12 @@ TOKEN_ENCRYPTION_KEY = _required("TOKEN_ENCRYPTION_KEY")
 # Shared secret that pg_cron sends in the X-Service-Secret header.
 SERVICE_SECRET = _required("SERVICE_SECRET")
 
+# Strava OAuth app (strava.com/settings/api). Optional: without them the
+# /strava/* endpoints answer 503 and Garmin keeps working. The secret stays
+# server-side; the browser only ever sees the public client id.
+STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID", "").strip()
+STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "").strip()
+
 # Comma-separated list of browser origins allowed to call this service.
 ALLOWED_ORIGINS = [
     o.strip()

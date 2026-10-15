@@ -10,6 +10,10 @@ Endpoints
   POST   /garmin/mfa           user JWT   {code}            -> connected
   POST   /garmin/sync          user JWT   manual "sync now" (60s cooldown)
   POST   /garmin/backfill      user JWT   import full history in the background (202)
+  POST   /strava/connect       user JWT   {code, scope} -> OAuth finish + history import
+  POST   /strava/sync          user JWT   manual sync (60s cooldown)
+  POST   /strava/backfill      user JWT   import full history in the background (202)
+  DELETE /strava/disconnect    user JWT   revoke + delete tokens and Strava activities
   DELETE /garmin/disconnect    user JWT   deletes tokens + Garmin activities
   POST   /internal/sync-all    X-Service-Secret (pg_cron) -> 202, runs in background
   GET    /health
@@ -32,7 +36,9 @@ from garminconnect import (
 )
 from pydantic import BaseModel
 
-from . import db, sync
+import httpx
+
+from . import db, strava, sync
 from .settings import ALLOWED_ORIGINS, SERVICE_SECRET
 
 logging.basicConfig(level=logging.INFO)
@@ -50,8 +56,6 @@ app.add_middleware(
     allow_private_network=True,
 )
 
-
-
 # user_id -> (Garmin client awaiting MFA, client_state, created_at)
 _pending: dict[str, tuple[Garmin, object, float]] = {}
 _pending_lock = threading.Lock()
@@ -68,6 +72,11 @@ class ConnectBody(BaseModel):
 
 class MfaBody(BaseModel):
     code: str
+
+
+class StravaConnectBody(BaseModel):
+    code: str
+    scope: str = ""
 
 
 def _purge_pending() -> None:
@@ -199,6 +208,99 @@ def disconnect(user_id: str = Depends(db.current_user_id)) -> dict:
     db.delete("connections", {"user_id": f"eq.{user_id}", "provider": "eq.garmin"})  # tokens cascade
     with _pending_lock:
         _pending.pop(user_id, None)
+    return {"ok": True}
+
+
+# --- Strava ------------------------------------------------------------------
+
+def _strava_connection(user_id: str) -> dict:
+    """The caller's Strava connection row, or the right HTTP error."""
+    if not strava.configured():
+        raise HTTPException(503, "Strava is not configured on this server.")
+    rows = db.select(
+        "connections",
+        {"user_id": f"eq.{user_id}", "provider": "eq.strava", "select": "id,user_id,status"},
+    )
+    if not rows:
+        raise HTTPException(404, "Strava is not connected.")
+    if rows[0]["status"] == "needs_reauth":
+        raise HTTPException(409, "Strava authorization expired. Please reconnect Strava.")
+    return rows[0]
+
+
+@app.post("/strava/connect")
+def strava_connect(
+    body: StravaConnectBody,
+    background: BackgroundTasks,
+    user_id: str = Depends(db.current_user_id),
+) -> dict:
+    """
+    Finishes the Strava OAuth flow: exchanges the `code` (the client secret
+    never reaches the browser), stores encrypted tokens, imports the latest
+    activities right away, then pulls the full history in the background.
+    """
+    if not strava.configured():
+        raise HTTPException(503, "Strava is not configured on this server.")
+    scopes = body.scope.split(",")
+    if "activity:read" not in scopes and "activity:read_all" not in scopes:
+        raise HTTPException(
+            400,
+            "Strava access to activities was not granted. Reconnect and keep "
+            "'View data about your activities' ticked.",
+        )
+    try:
+        tokens = strava.exchange_code(body.code)
+        conn = strava.save_connection(user_id, tokens)
+    except strava.StravaAuthError:
+        raise HTTPException(400, "Strava rejected the login. Please try connecting again.")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 409:  # (provider, external_id) already linked
+            raise HTTPException(409, "This Strava account is already linked to another user.")
+        log.warning("strava connect failed: HTTP %s", e.response.status_code)
+        raise HTTPException(502, "Could not connect Strava. Please try again.")
+    except Exception as e:
+        log.warning("strava connect failed: %s", type(e).__name__)
+        raise HTTPException(502, "Could not connect Strava. Please try again.")
+
+    first = strava.sync_connection(conn)
+    background.add_task(strava.sync_connection, conn, True)
+    return {"status": "connected", "imported": first["imported"], "importing_history": True}
+
+
+@app.post("/strava/sync")
+def strava_sync(user_id: str = Depends(db.current_user_id)) -> dict:
+    """Manual Strava sync (latest 50) with the same 60 s cooldown as Garmin."""
+    conn = _strava_connection(user_id)
+    now = time.time()
+    key = f"strava:{user_id}"
+    with _attempt_lock:
+        if now - _last_attempt.get(key, 0.0) < SYNC_COOLDOWN_S:
+            return {"status": "recent", "imported": 0}
+        _last_attempt[key] = now
+    return strava.sync_connection(conn)
+
+
+@app.post("/strava/backfill", status_code=202)
+def strava_backfill(background: BackgroundTasks, user_id: str = Depends(db.current_user_id)) -> dict:
+    """Imports the entire Strava history in the background (saved page by page)."""
+    conn = _strava_connection(user_id)
+    if strava.is_busy(conn["id"]):
+        raise HTTPException(409, "A Strava sync is already running. Try again in a minute.")
+    background.add_task(strava.sync_connection, conn, True)
+    return {"status": "started"}
+
+
+@app.delete("/strava/disconnect")
+def strava_disconnect(user_id: str = Depends(db.current_user_id)) -> dict:
+    """Revokes our Strava access (best effort), then deletes its tokens and activities."""
+    rows = db.select(
+        "connections",
+        {"user_id": f"eq.{user_id}", "provider": "eq.strava", "select": "id"},
+    )
+    if rows and strava.configured():
+        strava.deauthorize(rows[0]["id"])
+    db.delete("activities", {"user_id": f"eq.{user_id}", "provider": "eq.strava"})
+    db.delete("connections", {"user_id": f"eq.{user_id}", "provider": "eq.strava"})  # tokens cascade
     return {"ok": True}
 
 
