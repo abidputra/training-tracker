@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+httpx>=0.27
+cryptography>=43
+# Unofficial Garmin API: it breaks when Garmin changes login. Pinned exactly;
+# bump deliberately and re-test connect + MFA. curl_cffi is required by >= 0.3.
+garminconnect==0.3.17
+curl_cffi>=0.7

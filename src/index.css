@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Dark, phone-first base. Safe-area insets keep content clear of the notch / home bar when installed as a PWA. */
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}

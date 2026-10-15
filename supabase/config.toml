@@ -1,0 +1,15 @@
+# Minimal Supabase CLI config. `supabase link --project-ref <ref>` fills in the rest.
+project_id = "training-tracker"
+
+# Strava calls this endpoint server-to-server and cannot send a Supabase JWT,
+# so JWT verification must be off. The function protects itself instead
+# (verify token on the handshake + subscription_id check on events).
+[functions.strava-webhook]
+verify_jwt = false
+
+# Called by the signed-in browser, keep JWT verification ON (default).
+[functions.strava-connect]
+verify_jwt = true
+
+[functions.strava-disconnect]
+verify_jwt = true

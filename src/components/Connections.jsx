@@ -1,0 +1,122 @@
+/**
+ * Provider connections card: Strava + Garmin.
+ * Statuses come from the live `connections` table:
+ *   (no row)       -> not connected
+ *   active         -> connected
+ *   needs_reauth   -> session expired, user must reconnect
+ *   error          -> temporary sync problem (retries automatically)
+ */
+import { useState } from 'react';
+import { edgeFn, garminApi, startStravaOAuth } from '../lib/api.js';
+import { timeAgo } from '../lib/format.js';
+import GarminForm from './GarminForm.jsx';
+
+function Badge({ conn }) {
+  if (!conn) return <span className="text-slate-500">Not connected</span>;
+  if (conn.status === 'needs_reauth') return <span className="text-amber-400">Needs reconnect</span>;
+  if (conn.status === 'error') return <span className="text-amber-400">Sync issue, retrying</span>;
+  return <span className="text-emerald-400">Connected · synced {timeAgo(conn.last_synced_at)}</span>;
+}
+
+const btn = 'rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-200 disabled:opacity-50';
+const btnPrimary = 'rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-slate-950 disabled:opacity-50';
+
+export default function Connections({ connections, onNotice, onChanged }) {
+  const [showGarmin, setShowGarmin] = useState(false);
+  const [busy, setBusy] = useState(null); // 'garmin-sync' | 'strava-off' | 'garmin-off'
+  const strava = connections.strava;
+  const garmin = connections.garmin;
+  const garminNeedsLogin = !garmin || garmin.status === 'needs_reauth';
+
+  async function run(key, fn, okText) {
+    setBusy(key);
+    try {
+      await fn();
+      if (okText) onNotice({ type: 'info', text: okText });
+      onChanged();
+    } catch (e) {
+      onNotice({ type: 'error', text: e.message });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const confirmDisconnect = (name) =>
+    window.confirm(`Disconnect ${name}? Its imported activities will be deleted from this app.`);
+
+  return (
+    <section className="rounded-2xl bg-slate-900 p-4">
+      <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Connections</h2>
+
+      {/* Strava */}
+      <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
+        <div>
+          <div className="font-medium text-white">Strava</div>
+          <div className="text-xs"><Badge conn={strava} /></div>
+        </div>
+        {!strava || strava.status === 'needs_reauth' ? (
+          <button onClick={startStravaOAuth} className={btnPrimary}>
+            {strava ? 'Reconnect' : 'Connect'}
+          </button>
+        ) : (
+          <button
+            disabled={busy === 'strava-off'}
+            className={btn}
+            onClick={() => confirmDisconnect('Strava') &&
+              run('strava-off', () => edgeFn('strava-disconnect'), 'Strava disconnected.')}
+          >
+            Disconnect
+          </button>
+        )}
+      </div>
+
+      {/* Garmin */}
+      <div className="pt-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="font-medium text-white">Garmin</div>
+            <div className="text-xs"><Badge conn={garmin} /></div>
+          </div>
+          <div className="flex gap-2">
+            {garminNeedsLogin ? (
+              !showGarmin && (
+                <button onClick={() => setShowGarmin(true)} className={btnPrimary}>
+                  {garmin ? 'Log in again' : 'Connect'}
+                </button>
+              )
+            ) : (
+              <>
+                <button
+                  disabled={busy === 'garmin-sync'}
+                  className={btn}
+                  onClick={() => run('garmin-sync', () => garminApi('/garmin/sync'))}
+                >
+                  {busy === 'garmin-sync' ? 'Syncing…' : 'Sync now'}
+                </button>
+                <button
+                  disabled={busy === 'garmin-off'}
+                  className={btn}
+                  onClick={() => confirmDisconnect('Garmin') &&
+                    run('garmin-off', () => garminApi('/garmin/disconnect', { method: 'DELETE' }), 'Garmin disconnected.')}
+                >
+                  Disconnect
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {showGarmin && garminNeedsLogin && (
+          <GarminForm
+            onCancel={() => setShowGarmin(false)}
+            onDone={(text) => {
+              setShowGarmin(false);
+              onNotice({ type: 'info', text });
+              onChanged();
+            }}
+          />
+        )}
+      </div>
+    </section>
+  );
+}

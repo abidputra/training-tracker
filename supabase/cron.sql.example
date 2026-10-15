@@ -1,0 +1,30 @@
+-- =============================================================================
+-- cron.sql.example  |  Poll Garmin on a schedule
+--
+-- Garmin has no push webhooks for this (unofficial) integration, so we poll.
+-- pg_cron pings the Garmin service, which syncs every active Garmin
+-- connection in the background and returns immediately (this also wakes the
+-- service if your host sleeps on the free tier).
+--
+-- HOW TO USE
+--   1. Replace the two placeholders below.
+--   2. Run it once in the Supabase SQL editor (NOT as a migration, it
+--      contains a secret).
+--   3. Check runs:  select * from cron.job_run_details order by start_time desc limit 5;
+--
+-- To stop:  select cron.unschedule('garmin-sync');
+-- =============================================================================
+
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+select cron.schedule(
+  'garmin-sync',
+  '*/20 * * * *',   -- every 20 min. Don't go much lower: Garmin rate-limits.
+  $$
+  select net.http_post(
+    url     := 'https://YOUR-GARMIN-SERVICE-HOST/internal/sync-all',
+    headers := jsonb_build_object('X-Service-Secret', 'YOUR_SERVICE_SECRET')
+  );
+  $$
+);
