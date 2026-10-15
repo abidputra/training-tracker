@@ -44,7 +44,13 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
+    # The deployed (https) frontend may call this service on http://localhost.
+    # Chrome sends a "private network" preflight for that and needs this to
+    # succeed. Origins are still restricted by the allow-list above.
+    allow_private_network=True,
 )
+
+
 
 # user_id -> (Garmin client awaiting MFA, client_state, created_at)
 _pending: dict[str, tuple[Garmin, object, float]] = {}
