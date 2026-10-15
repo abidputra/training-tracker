@@ -23,7 +23,7 @@ const btnPrimary = 'rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium te
 
 export default function Connections({ connections, onNotice, onChanged }) {
   const [showGarmin, setShowGarmin] = useState(false);
-  const [busy, setBusy] = useState(null); // 'garmin-sync' | 'strava-off' | 'garmin-off'
+  const [busy, setBusy] = useState(null); // 'garmin-sync' | 'garmin-all' | 'strava-off' | 'garmin-off'
   const strava = connections.strava;
   const garmin = connections.garmin;
   const garminNeedsLogin = !garmin || garmin.status === 'needs_reauth';
@@ -92,6 +92,18 @@ export default function Connections({ connections, onNotice, onChanged }) {
                   onClick={() => run('garmin-sync', () => garminApi('/garmin/sync'))}
                 >
                   {busy === 'garmin-sync' ? 'Syncing…' : 'Sync now'}
+                </button>
+                <button
+                  disabled={busy === 'garmin-all'}
+                  className={btn}
+                  title="Imports your entire Garmin history in the background"
+                  onClick={() => run(
+                    'garmin-all',
+                    () => garminApi('/garmin/backfill'),
+                    'Importing your full history. Runs appear here as they arrive, this can take a few minutes.',
+                  )}
+                >
+                  {busy === 'garmin-all' ? 'Starting…' : 'Import all'}
                 </button>
                 <button
                   disabled={busy === 'garmin-off'}
