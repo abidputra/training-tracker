@@ -5,7 +5,10 @@
  */
 import { supabase } from './supabase.js';
 
-const GARMIN_URL = (import.meta.env.VITE_GARMIN_API_URL ?? '').replace(/\/$/, '');
+// Strava is built but switched off. Set VITE_ENABLE_STRAVA=true to show it again.
+export const STRAVA_ENABLED = import.meta.env.VITE_ENABLE_STRAVA === 'true';
+
+const GARMIN_URL =(import.meta.env.VITE_GARMIN_API_URL ?? '').replace(/\/$/, '');
 
 /** Garmin service call. Throws Error(message) with the server's `detail` on failure. */
 export async function garminApi(path, { method = 'POST', body } = {}) {

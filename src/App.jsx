@@ -9,7 +9,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
-import { garminApi } from './lib/api.js';
+import { STRAVA_ENABLED, garminApi } from './lib/api.js';
 import { useSession } from './hooks/useSession.js';
 import { useActivities } from './hooks/useActivities.js';
 import { useConnections } from './hooks/useConnections.js';
@@ -27,7 +27,7 @@ export default function App() {
 
   // --- Strava OAuth return -----------------------------------------------------
   useEffect(() => {
-    if (!session || stravaHandled.current) return;
+    if (!STRAVA_ENABLED || !session || stravaHandled.current) return;
     const q = new URLSearchParams(window.location.search);
     const code = q.get('code');
     const state = q.get('state');

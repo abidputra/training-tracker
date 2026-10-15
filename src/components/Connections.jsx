@@ -1,5 +1,5 @@
 /**
- * Provider connections card: Strava + Garmin.
+ * Provider connections card: Garmin (+ Strava when VITE_ENABLE_STRAVA=true).
  * Statuses come from the live `connections` table:
  *   (no row)       -> not connected
  *   active         -> connected
@@ -7,7 +7,7 @@
  *   error          -> temporary sync problem (retries automatically)
  */
 import { useState } from 'react';
-import { garminApi, startStravaOAuth } from '../lib/api.js';
+import { STRAVA_ENABLED, garminApi, startStravaOAuth } from '../lib/api.js';
 import { timeAgo } from '../lib/format.js';
 import GarminForm from './GarminForm.jsx';
 
@@ -48,7 +48,8 @@ export default function Connections({ connections, onNotice, onChanged }) {
     <section className="rounded-2xl bg-slate-900 p-4">
       <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Connections</h2>
 
-      {/* Strava */}
+      {/* Strava (hidden unless VITE_ENABLE_STRAVA=true) */}
+      {STRAVA_ENABLED && (
       <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
         <div>
           <div className="font-medium text-white">Strava</div>
@@ -83,9 +84,10 @@ export default function Connections({ connections, onNotice, onChanged }) {
           </div>
         )}
       </div>
+      )}
 
       {/* Garmin */}
-      <div className="pt-3">
+      <div className={STRAVA_ENABLED ? 'pt-3' : ''}>
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="font-medium text-white">Garmin</div>

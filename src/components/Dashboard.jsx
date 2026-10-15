@@ -29,7 +29,7 @@ export default function Dashboard({ activities, loading, hasConnection }) {
   if (runs.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-slate-500">
-        {hasConnection ? 'No runs yet. They appear here once synced.' : 'Connect Strava or Garmin to see your analysis.'}
+        {hasConnection ? 'No runs yet. They appear here once synced.' : 'Connect Garmin to see your analysis.'}
       </p>
     );
   }
