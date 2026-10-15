@@ -40,7 +40,7 @@ STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "").strip()
 
 # Comma-separated list of browser origins allowed to call this service.
 ALLOWED_ORIGINS = [
-    o.strip()
+    o.strip().rstrip("/")  # browsers send "https://host" with no trailing slash
     for o in os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     if o.strip()
 ]
