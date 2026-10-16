@@ -32,10 +32,10 @@ import Spinner from './components/Spinner.jsx';
 // Header pills, in page order. Each id matches an element id on the metrics page.
 const SECTIONS = [
   { id: 'glance', label: 'At a Glance' },
-  { id: 'predictions', label: 'Race predictions' },
-  { id: 'paces', label: 'Training paces' },
+  { id: 'predictions', label: 'Race Predictions' },
+  { id: 'paces', label: 'Training Paces' },
   { id: 'trends', label: 'Trends' },
-  { id: 'dynamics', label: 'Running dynamics' },
+  { id: 'dynamics', label: 'Running Dynamics' },
 ];
 
 const TITLES = { metrics: 'Training Metrics', history: 'Activity History' };
