@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0002_usernames.sql  |  Usernames: sign in with email OR username
+-- usernames  |  Usernames: sign in with email OR username
 --
 -- Tables
 --   profiles  one row per user. username is stored lowercase and is unique.

@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0001_init.sql  |  Training Tracker core schema
+-- init_training_tracker  |  Training Tracker core schema
 --
 -- Tables
 --   connections      one row per (user, provider). Non-secret metadata only,
@@ -86,11 +86,11 @@ alter table public.activities      enable row level security;
 
 create policy "owner can read own connections"
   on public.connections for select
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 create policy "owner can read own activities"
   on public.activities for select
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 -- -----------------------------------------------------------------------------
 -- Realtime

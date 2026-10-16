@@ -24,7 +24,7 @@ Garmin ◄──poll── Garmin service (Python) ───┘
 Create a project, then from this folder:
 ```bash
 supabase link --project-ref <ref>
-supabase db push            # applies supabase/migrations/ (0001_init.sql, 0002_usernames.sql)
+supabase db push            # applies every file in supabase/migrations/ not yet on the remote
 ```
 In *Auth → Providers* keep Email enabled (turn off "confirm email" while developing).
 

@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0002_daily_metrics.sql  |  Daily wellness numbers (one row per user per day)
+-- daily_metrics  |  Daily wellness numbers (one row per user per day)
 --
 -- Filled by the Garmin service on every sync: HRV status, sleep score and
 -- body weight. Same access model as `activities`: the owner can read, only
