@@ -7,6 +7,11 @@ body,
   min-height: 100%;
 }
 
+/* Same colour on <html>: Safari uses it for the overscroll and status bar areas. */
+html {
+  background: #0f172a;
+}
+
 /* Top inset: the iPhone status bar plus a little breathing room, so the header
    and sticky pills sit below the area iOS blurs/fades at the top of the screen. */
 :root {
@@ -22,10 +27,11 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Solid strip behind the status bar so scrolled content never shows (or gets
-   blurred) underneath it. */
-body::before {
-  content: "";
+/* Solid strip behind the status bar (the <div class="top-cover"> in index.html)
+   so scrolled content never shows, or gets blurred, underneath it. It is a real
+   element, not ::before, because Safari tints its own top bar from fixed
+   elements touching the top edge, in the browser as well as the installed app. */
+.top-cover {
   position: fixed;
   inset: 0 0 auto 0;
   height: var(--top-inset);

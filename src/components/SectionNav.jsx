@@ -53,7 +53,7 @@ export default function SectionNav({ sections }) {
 
   return (
     <nav
-      className="sticky z-30 -mx-4 mb-4 bg-[#0f172a]/90 py-1 backdrop-blur"
+      className="sticky z-30 -mx-4 mb-4 bg-[#0f172a] py-1"
       style={{ top: 'var(--top-inset)' }}
     >
       <div
