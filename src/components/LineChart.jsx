@@ -60,7 +60,7 @@ export default function LineChart({ points, avg = [], fmt, higherIsUp = true, co
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full touch-pan-y select-none"
+        className="w-full cursor-crosshair touch-pan-y select-none"
         onPointerMove={onMove}
         onPointerLeave={() => setSel(null)}
         role="img"
@@ -81,6 +81,15 @@ export default function LineChart({ points, avg = [], fmt, higherIsUp = true, co
           <text x={W - PAD.r} y={H - 6} textAnchor="end" fontSize="9" fill="#64748b">{dateLabel(t1)}</text>
         )}
 
+        {/* crosshair on the dot being hovered / touched */}
+        {sel && (
+          <g pointerEvents="none">
+            <line x1={PAD.l} x2={x(sel.t)} y1={y(sel.v)} y2={y(sel.v)} stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+            <line x1={x(sel.t)} x2={x(sel.t)} y1={PAD.t} y2={H - PAD.b} stroke="#cbd5e1" strokeWidth="1" opacity="0.8" />
+            <circle cx={x(sel.t)} cy={y(sel.v)} r="9" fill={color} opacity="0.25" />
+          </g>
+        )}
+
         {avg.length > 1 && <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />}
         {points.map((p) => (
           <circle
@@ -90,6 +99,8 @@ export default function LineChart({ points, avg = [], fmt, higherIsUp = true, co
             r={p === sel ? 4.5 : 2.5}
             fill={color}
             opacity={p === sel ? 1 : 0.55}
+            stroke={p === sel ? '#f8fafc' : 'none'}
+            strokeWidth="1.5"
           />
         ))}
       </svg>

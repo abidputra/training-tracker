@@ -7,7 +7,7 @@
  * and what the metric means. The last tile is body weight (from daily metrics).
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { filterRange, rolling, windowAvg } from '../lib/analysis.js';
+import { DEFAULT_RANGE, RANGES, filterRange, rolling, windowAvg } from '../lib/analysis.js';
 import { dayLabel } from '../lib/glance.js';
 import Drawer from './Drawer.jsx';
 import LineChart from './LineChart.jsx';
@@ -47,12 +47,6 @@ const WEIGHT = {
   key: 'weight', label: 'Body weight', unit: 'kg', digits: 1, better: null, isWeight: true,
   info: 'From Garmin weigh-ins (Index scale or logged manually in Garmin Connect). If you have no recent weigh-ins, the weight in your Garmin profile is shown instead. Day-to-day changes are mostly water; the 7-day line is the useful trend.',
 };
-
-const RANGES = [
-  { key: '4w', label: '4 weeks' },
-  { key: '12w', label: '12 weeks' },
-  { key: 'all', label: 'All' },
-];
 
 const DAY = 86_400_000;
 
@@ -99,7 +93,7 @@ function Stat({ label, value }) {
 }
 
 function Detail({ metric, runs, weight }) {
-  const [range, setRange] = useState('12w');
+  const [range, setRange] = useState(DEFAULT_RANGE);
   const fmt = (v) => (v == null ? '–' : v.toFixed(metric.digits));
   const u = metric.unit ? ` ${metric.unit}` : '';
 
@@ -151,6 +145,7 @@ function Detail({ metric, runs, weight }) {
           {RANGES.map((r) => (
             <button
               key={r.key}
+              title={r.name}
               onClick={() => setRange(r.key)}
               className={`rounded-md px-2.5 py-1 text-xs ${range === r.key ? 'bg-slate-600 text-white' : 'text-slate-400'}`}
             >

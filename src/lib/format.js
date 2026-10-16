@@ -50,11 +50,28 @@ export function timeAgo(iso) {
 }
 
 /** Human label + whether pace (running-like) or speed (cycling-like) is the useful metric. */
-export function sportInfo(sportType = '') {
-  const t = sportType.toLowerCase();
-  if (/run|walk|hike/.test(t)) return { label: sportType.replace(/_/g, ' '), icon: '🏃', usePace: true };
-  if (/ride|cycl|bike/.test(t)) return { label: sportType.replace(/_/g, ' '), icon: '🚴', usePace: false };
+export function sportInfo(sportType) {
+  const st = sportType ?? ''; // the column is nullable
+  const t = st.toLowerCase();
+  const label = st.replace(/_/g, ' ');
+  if (/run|walk|hike/.test(t)) return { label, icon: '🏃', usePace: true };
+  if (/ride|cycl|bike/.test(t)) return { label, icon: '🚴', usePace: false };
   if (/swim/.test(t)) return { label: 'swim', icon: '🏊', usePace: false };
-  if (/weight|strength|workout|crossfit|yoga/.test(t)) return { label: sportType.replace(/_/g, ' '), icon: '🏋️', usePace: false };
-  return { label: sportType ? sportType.replace(/_/g, ' ') : 'activity', icon: '⚡', usePace: false };
+  if (/weight|strength|workout|crossfit|yoga|pilates|hiit|cardio/.test(t)) return { label, icon: '🏋️', usePace: false };
+  return { label: label || 'activity', icon: '⚡', usePace: false };
+}
+
+/** Broad sport families for the Activity History filter. First match wins; the rest is 'other'. */
+const FAMILIES = [
+  { key: 'run', label: 'Running', icon: '🏃', test: /run/ },
+  { key: 'ride', label: 'Cycling', icon: '🚴', test: /ride|cycl|bik/ },
+  { key: 'walk', label: 'Walking & Hiking', icon: '🚶', test: /walk|hik/ },
+  { key: 'swim', label: 'Swimming', icon: '🏊', test: /swim/ },
+  { key: 'strength', label: 'Strength & Fitness', icon: '🏋️', test: /weight|strength|workout|crossfit|yoga|pilates|hiit|cardio|fitness/ },
+];
+export const SPORT_FAMILIES = [...FAMILIES, { key: 'other', label: 'Other', icon: '⚡' }];
+
+export function sportFamily(sportType) {
+  const t = (sportType ?? '').toLowerCase();
+  return FAMILIES.find((f) => f.test.test(t))?.key ?? 'other';
 }

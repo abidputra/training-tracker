@@ -4,18 +4,12 @@
  * charts show; predictions and paces always use your recent best effort.
  */
 import { useMemo, useState } from 'react';
-import { filterRange, fitness, getRuns } from '../lib/analysis.js';
+import { DEFAULT_RANGE, RANGES, filterRange, fitness, getRuns } from '../lib/analysis.js';
 import { paceSec } from '../lib/format.js';
 import DynamicsCard from './DynamicsCard.jsx';
 import PaceTableCard from './PaceTableCard.jsx';
 import PredictionCard from './PredictionCard.jsx';
 import TrendCard from './TrendCard.jsx';
-
-const RANGES = [
-  { key: '4w', label: '4 weeks' },
-  { key: '12w', label: '12 weeks' },
-  { key: 'all', label: 'All' },
-];
 
 const signed = (d, fmt) => `${d > 0 ? '+' : d < 0 ? '−' : ''}${fmt(Math.abs(d))}`;
 
@@ -27,7 +21,7 @@ const Anchor = ({ id, children, className = '' }) => (
 );
 
 export default function Dashboard({ activities, days, loading, hasConnection }) {
-  const [range, setRange] = useState('12w');
+  const [range, setRange] = useState(DEFAULT_RANGE);
   const runs = useMemo(() => getRuns(activities), [activities]);
   const shown = useMemo(() => filterRange(runs, range), [runs, range]);
   const fit = useMemo(() => fitness(runs), [runs]);
@@ -53,6 +47,7 @@ export default function Dashboard({ activities, days, loading, hasConnection }) 
             {RANGES.map((r) => (
               <button
                 key={r.key}
+                title={r.name}
                 onClick={() => setRange(r.key)}
                 className={`rounded-md px-2.5 py-1 text-xs ${
                   range === r.key ? 'bg-slate-700 text-white' : 'text-slate-400'

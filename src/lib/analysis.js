@@ -149,9 +149,33 @@ export function rolling(runs, at, get, days = 28) {
     .filter((p) => p.v != null);
 }
 
+/**
+ * Range choices for the trend charts, shared by every selector. They count
+ * back from the LATEST run (not today), so a runner on a break still sees data.
+ */
+export const RANGES = [
+  { key: '1m', label: '1M', name: '1 month', months: 1 },
+  { key: '3m', label: '3M', name: '3 months', months: 3 },
+  { key: 'ytd', label: 'YTD', name: 'Year to date' },
+  { key: '1y', label: '1Y', name: '1 year', months: 12 },
+  { key: 'all', label: 'All', name: 'All time' },
+];
+export const DEFAULT_RANGE = '3m';
+
+/** `d` minus `months` calendar months; Mar 31 - 1 month = Feb 28/29, not Mar 3. */
+function monthsBefore(d, months) {
+  const out = new Date(d.getFullYear(), d.getMonth() - months, 1, d.getHours(), d.getMinutes(), d.getSeconds());
+  const lastDay = new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate();
+  out.setDate(Math.min(d.getDate(), lastDay));
+  return out;
+}
+
 export function filterRange(runs, range) {
-  if (range === 'all' || runs.length === 0) return runs;
-  const weeks = range === '4w' ? 4 : 12;
-  const cutoff = runs[runs.length - 1].t - weeks * 7 * DAY;
+  const def = RANGES.find((r) => r.key === range);
+  if (!def || def.key === 'all' || runs.length === 0) return runs;
+  const latest = new Date(runs[runs.length - 1].t);
+  const cutoff = def.key === 'ytd'
+    ? new Date(latest.getFullYear(), 0, 1).getTime()
+    : monthsBefore(latest, def.months).getTime();
   return runs.filter((r) => r.t >= cutoff);
 }

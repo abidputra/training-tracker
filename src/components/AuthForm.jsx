@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { USERNAME_HELP, isValidUsername, normalizeUsername } from '../lib/username.js';
+import PasswordInput from './PasswordInput.jsx';
 
 const input =
   'w-full rounded-xl bg-slate-900 px-4 py-3 text-base outline-none ring-1 ring-slate-800 focus:ring-emerald-500';
@@ -47,6 +48,11 @@ export default function AuthForm() {
       options: { data: { username: uname } },
     });
     if (error) throw error;
+    // With email confirmation on, Supabase hides whether an email is registered: signUp
+    // "succeeds" for an existing address but returns a user with no identities.
+    if (data.user?.identities?.length === 0) {
+      throw new Error('This email is already registered. Try signing in instead.');
+    }
     // With email confirmation enabled, signUp returns no session until the link is clicked.
     if (!data.session) {
       setMessage({ type: 'info', text: 'Check your email to confirm your account, then sign in.' });
@@ -105,8 +111,7 @@ export default function AuthForm() {
             />
           </>
         )}
-        <input
-          type="password"
+        <PasswordInput
           required
           minLength={8}
           autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}

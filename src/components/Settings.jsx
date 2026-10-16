@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase.js';
 import { USERNAME_HELP, isValidUsername, normalizeUsername } from '../lib/username.js';
 import Connections from './Connections.jsx';
 import Spinner from './Spinner.jsx';
+import PasswordInput from './PasswordInput.jsx';
 
 const input =
   'w-full rounded-xl bg-slate-950 px-4 py-3 text-base outline-none ring-1 ring-slate-800 focus:ring-emerald-500';
@@ -118,8 +119,7 @@ function EmailForm({ email, onNotice }) {
         onChange={(e) => setNewEmail(e.target.value)}
         className={input}
       />
-      <input
-        type="password"
+      <PasswordInput
         required
         autoComplete="current-password"
         placeholder="Current password"
@@ -157,8 +157,7 @@ function PasswordForm({ email, onNotice }) {
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <input
-        type="password"
+      <PasswordInput
         required
         autoComplete="current-password"
         placeholder="Current password"
@@ -166,8 +165,7 @@ function PasswordForm({ email, onNotice }) {
         onChange={(e) => setCurrent(e.target.value)}
         className={input}
       />
-      <input
-        type="password"
+      <PasswordInput
         required
         minLength={8}
         autoComplete="new-password"
@@ -176,8 +174,7 @@ function PasswordForm({ email, onNotice }) {
         onChange={(e) => setNext(e.target.value)}
         className={input}
       />
-      <input
-        type="password"
+      <PasswordInput
         required
         minLength={8}
         autoComplete="new-password"

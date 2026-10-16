@@ -4,7 +4,7 @@
  * loaded here (`raw`), since the history list does not fetch it.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { headlineStats, summaryRows } from '../lib/activityStats.js';
+import { activityKind, exerciseRows, headlineStats, summaryRows } from '../lib/activityStats.js';
 import { sportInfo } from '../lib/format.js';
 import { supabase } from '../lib/supabase.js';
 import Spinner from './Spinner.jsx';
@@ -42,6 +42,8 @@ export default function ActivityDetail({ activity, onBack }) {
     minute: '2-digit',
   });
   const rows = useMemo(() => summaryRows(activity, raw), [activity, raw]);
+  const exercises = useMemo(() => exerciseRows(activity, raw), [activity, raw]);
+  const isDistance = activityKind(activity) === 'distance';
 
   return (
     <div className="space-y-4">
@@ -70,6 +72,26 @@ export default function ActivityDetail({ activity, onBack }) {
         ))}
       </section>
 
+      {exercises.length > 0 && (
+        <section className="rounded-2xl bg-slate-900 p-4">
+          <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">Exercises</h2>
+          <ul className="divide-y divide-slate-800">
+            {exercises.map((e, i) => (
+              <li key={i} className="flex items-start justify-between gap-4 py-2.5 text-sm">
+                <div className="min-w-0">
+                  <div className="text-slate-100">{e.name}</div>
+                  {e.detail && <div className="text-xs text-slate-400">{e.detail}</div>}
+                </div>
+                <div className="shrink-0 text-right text-xs tabular-nums text-slate-400">
+                  {e.weight && <div>{e.weight}</div>}
+                  {e.volume && <div className="text-slate-300">{e.volume}</div>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="rounded-2xl bg-slate-900 p-4">
         <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">Details</h2>
 
@@ -93,7 +115,9 @@ export default function ActivityDetail({ activity, onBack }) {
         </dl>
       </section>
 
-      <p className="px-1 text-xs text-slate-500">Laps, splits and pace or heart-rate charts are coming soon.</p>
+      {isDistance && (
+        <p className="px-1 text-xs text-slate-500">Laps, splits and pace or heart-rate charts are coming soon.</p>
+      )}
     </div>
   );
 }

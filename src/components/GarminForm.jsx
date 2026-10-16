@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { garminApi } from '../lib/api.js';
 import Spinner from './Spinner.jsx';
+import PasswordInput from './PasswordInput.jsx';
 
 export default function GarminForm({ onDone, onCancel }) {
   const [step, setStep] = useState('creds'); // 'creds' | 'mfa'
@@ -47,7 +48,7 @@ export default function GarminForm({ onDone, onCancel }) {
         <>
           <input type="email" required autoComplete="username" placeholder="Garmin email"
             value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
-          <input type="password" required autoComplete="current-password" placeholder="Garmin password"
+          <PasswordInput required autoComplete="current-password" placeholder="Garmin password"
             value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
           <p className="text-xs text-slate-500">
             Your password is used once to log in and is never stored. Only an encrypted session token is saved.

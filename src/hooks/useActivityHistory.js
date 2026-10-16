@@ -15,6 +15,11 @@ const COLUMNS = [
   'id', 'provider', 'external_id', 'sport_type', 'name', 'start_time',
   'distance_m', 'moving_time_s', 'elapsed_time_s', 'elevation_gain_m',
   'avg_hr', 'max_hr', 'avg_speed_mps', 'calories',
+  // lifted out of `raw` for strength-style workouts (null for everything else)
+  'duration:raw->duration',
+  'sets:raw->totalSets',
+  'reps:raw->totalReps',
+  'exercises:raw->summarizedExerciseSets',
 ].join(',');
 
 async function fetchAllActivities() {
