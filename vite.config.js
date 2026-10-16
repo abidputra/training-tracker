@@ -9,12 +9,19 @@
  * Icons live in /public. iOS "Add to Home Screen" uses apple-touch-icon.png,
  * which index.html references explicitly.
  */
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// App version shown in the footer comes from package.json "version".
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   plugins: [
     react(),
     tailwindcss(),

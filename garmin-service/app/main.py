@@ -14,7 +14,7 @@ Endpoints
   POST   /strava/sync          user JWT   manual sync (60s cooldown)
   POST   /strava/backfill      user JWT   import full history in the background (202)
   DELETE /strava/disconnect    user JWT   revoke + delete tokens and Strava activities
-  DELETE /garmin/disconnect    user JWT   deletes tokens + Garmin activities
+  DELETE /garmin/disconnect    user JWT   deletes tokens + Garmin activities + daily metrics
   POST   /internal/sync-all    X-Service-Secret (pg_cron) -> 202, runs in background
   GET    /health
 
@@ -123,7 +123,7 @@ def _finish_connect(user_id: str, g: Garmin) -> dict:
     runs the first sync, which doubles as validation that the session works.
     """
     conn = sync.save_connection(user_id, g.client.dumps())
-    result = sync.sync_connection(conn, limit=50)
+    result = sync.sync_connection(conn, limit=50, wellness_days=28)
     if result["status"] != "active":
         raise HTTPException(status_code=502, detail=result["error"] or "Connected, but the first sync failed.")
     return {"status": "connected", "imported": result["imported"]}
@@ -233,8 +233,9 @@ def backfill(background: BackgroundTasks, user_id: str = Depends(db.current_user
 
 @app.delete("/garmin/disconnect")
 def disconnect(user_id: str = Depends(db.current_user_id)) -> dict:
-    """Deletes the stored session and all Garmin activities for this user."""
+    """Deletes the stored session and all Garmin activities + daily metrics for this user."""
     db.delete("activities", {"user_id": f"eq.{user_id}", "provider": "eq.garmin"})
+    db.delete("daily_metrics", {"user_id": f"eq.{user_id}", "provider": "eq.garmin"})
     db.delete("connections", {"user_id": f"eq.{user_id}", "provider": "eq.garmin"})  # tokens cascade
     with _pending_lock:
         _pending.pop(user_id, None)

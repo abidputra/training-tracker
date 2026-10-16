@@ -13,11 +13,11 @@ const PAD = { l: 46, r: 10, t: 10, b: 22 };
 
 const dateLabel = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
-export default function LineChart({ points, avg = [], fmt, higherIsUp = true, color = '#34d399' }) {
+export default function LineChart({ points, avg = [], fmt, higherIsUp = true, color = '#34d399', emptyText = 'No runs in this range.' }) {
   const [sel, setSel] = useState(null);
 
   if (points.length === 0) {
-    return <p className="py-10 text-center text-sm text-slate-500">No runs in this range.</p>;
+    return <p className="py-10 text-center text-sm text-slate-500">{emptyText}</p>;
   }
 
   const values = [...points, ...avg].map((p) => p.v);

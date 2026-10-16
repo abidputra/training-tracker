@@ -4,6 +4,8 @@
  *
  * Pull down while scrolled to the top; past THRESHOLD px, releasing calls
  * onRefresh(). Returns { pull, refreshing } for drawing the indicator.
+ * Ignores horizontal swipes (carousels) and touches inside [data-no-ptr]
+ * (e.g. an open drawer).
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -13,7 +15,7 @@ const MAX_PULL = 110;
 export function usePullToRefresh(onRefresh) {
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const start = useRef(null);
+  const start = useRef(null); // { x, y, dir: null | 'v' | 'h' }
   const pullRef = useRef(0);
   const busy = useRef(false);
   const cb = useRef(onRefresh);
@@ -27,11 +29,19 @@ export function usePullToRefresh(onRefresh) {
 
     const onStart = (e) => {
       if (busy.current || window.scrollY > 0 || e.touches.length !== 1) return;
-      start.current = e.touches[0].clientY;
+      if (e.target.closest?.('[data-no-ptr]')) return;
+      start.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dir: null };
     };
     const onMove = (e) => {
-      if (start.current === null) return;
-      const dy = e.touches[0].clientY - start.current;
+      const s = start.current;
+      if (s === null) return;
+      const dx = e.touches[0].clientX - s.x;
+      const dy = e.touches[0].clientY - s.y;
+      if (!s.dir) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // not sure yet
+        s.dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+      }
+      if (s.dir === 'h') return;
       if (dy <= 0 || window.scrollY > 0) {
         if (pullRef.current) set(0);
         return;

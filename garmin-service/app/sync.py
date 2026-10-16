@@ -13,7 +13,7 @@ Design notes
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from garminconnect import (
     Garmin,
@@ -34,6 +34,12 @@ _sync_all_lock = threading.Lock()
 BACKFILL_PAGE = 100
 BACKFILL_PAUSE_S = 2.0
 BACKFILL_MAX_PAGES = 200
+
+# Daily wellness (HRV, sleep, weight) lookback in days: a regular sync only
+# needs the last few nights; a full import pulls about half a year.
+WELLNESS_DAYS = 7
+WELLNESS_DAYS_BACKFILL = 180
+HRV_CHUNK_DAYS = 28  # keep each HRV range request modest
 
 # Connections being synced right now. Stops a manual "sync now" and the cron
 # run from refreshing and overwriting the same token blob at the same time.
@@ -85,6 +91,103 @@ def map_activity(user_id: str, a: dict) -> dict | None:
     }
 
 
+def _num(x):
+    return x if isinstance(x, (int, float)) and not isinstance(x, bool) else None
+
+
+def _wellness_hrv(g: Garmin, uid: str, start: date, end: date) -> list[dict]:
+    rows = []
+    cur = start
+    while cur <= end:
+        chunk_end = min(cur + timedelta(days=HRV_CHUNK_DAYS - 1), end)
+        data = g.get_hrv_data_range(cur.isoformat(), chunk_end.isoformat()) or {}
+        for h in data.get("hrvSummaries") or []:
+            if not h.get("calendarDate"):
+                continue
+            base = h.get("baseline") or {}
+            rows.append({
+                "user_id": uid,
+                "day": h["calendarDate"],
+                "hrv_last_night": _num(h.get("lastNightAvg")),
+                "hrv_weekly_avg": _num(h.get("weeklyAvg")),
+                "hrv_status": h.get("status"),
+                "hrv_baseline_low": _num(base.get("balancedLow")),
+                "hrv_baseline_high": _num(base.get("balancedUpper")),
+                "updated_at": _now_iso(),
+            })
+        cur = chunk_end + timedelta(days=1)
+    return rows
+
+
+def _wellness_sleep(g: Garmin, uid: str, start: date, end: date) -> list[dict]:
+    rows = []
+    for s in g.get_sleep_daily(start.isoformat(), end.isoformat()) or []:
+        v = s.get("values") or s
+        score = v.get("sleepScore")
+        if isinstance(score, dict):  # defensive: some payloads nest {"value": n}
+            score = score.get("value")
+        seconds = _num(v.get("totalSleepTimeInSeconds")) or _num(v.get("sleepTimeSeconds"))
+        if score is None and seconds is None:
+            continue  # no sleep recorded that night
+        rows.append({
+            "user_id": uid,
+            "day": s["calendarDate"],
+            "sleep_score": _num(score),
+            "sleep_quality": v.get("sleepScoreQuality"),
+            "sleep_seconds": seconds,
+            "resting_hr": _num(v.get("restingHeartRate")),
+            "updated_at": _now_iso(),
+        })
+    return rows
+
+
+def _wellness_weight(g: Garmin, uid: str, start: date, end: date) -> list[dict]:
+    data = g.get_body_composition(start.isoformat(), end.isoformat()) or {}
+    by_day: dict[str, float] = {}
+    for w in sorted(data.get("dateWeightList") or [], key=lambda w: w.get("date") or 0):
+        if w.get("calendarDate") and _num(w.get("weight")):
+            by_day[w["calendarDate"]] = w["weight"] / 1000  # grams -> kg; last weigh-in of the day wins
+    rows = [
+        {"user_id": uid, "day": d, "weight_kg": kg, "weight_source": "weigh_in", "updated_at": _now_iso()}
+        for d, kg in by_day.items()
+    ]
+    if not rows:
+        # No weigh-ins in the window: fall back to the weight set in the Garmin profile.
+        profile = (g.get_user_profile() or {}).get("userData") or {}
+        if _num(profile.get("weight")):
+            rows.append({
+                "user_id": uid,
+                "day": datetime.now(timezone.utc).date().isoformat(),
+                "weight_kg": profile["weight"] / 1000,
+                "weight_source": "profile",
+                "updated_at": _now_iso(),
+            })
+    return rows
+
+
+def sync_wellness(g: Garmin, uid: str, days: int) -> int:
+    """
+    Upserts HRV, sleep and weight into `daily_metrics` for the last `days` days.
+    Each source is saved on its own (an upsert only touches the columns it
+    sends), and a failure in one never fails the activity sync.
+    Rate limiting propagates so the caller handles it like any other sync.
+    """
+    end = datetime.now(timezone.utc).date() + timedelta(days=1)  # users ahead of UTC are already "tomorrow"
+    start = end - timedelta(days=days)
+    saved = 0
+    for name, fetch in (("hrv", _wellness_hrv), ("sleep", _wellness_sleep), ("weight", _wellness_weight)):
+        try:
+            rows = fetch(g, uid, start, end)
+            if rows:
+                db.upsert("daily_metrics", rows, on_conflict="user_id,day")
+                saved += len(rows)
+        except GarminConnectTooManyRequestsError:
+            raise
+        except Exception as e:
+            log.warning("wellness %s sync failed: %s", name, type(e).__name__)
+    return saved
+
+
 def save_connection(user_id: str, token_json: str) -> dict:
     """Creates/updates the user's Garmin connection and stores encrypted tokens."""
     rows = db.upsert(
@@ -114,10 +217,11 @@ def is_busy(connection_id: str) -> bool:
         return connection_id in _active
 
 
-def sync_connection(conn: dict, limit: int = 20, everything: bool = False) -> dict:
+def sync_connection(conn: dict, limit: int = 20, everything: bool = False, wellness_days: int | None = None) -> dict:
     """
     Pulls the latest `limit` activities for one connection and upserts them.
     With `everything=True` it pages through the user's entire Garmin history.
+    Also refreshes daily wellness (HRV, sleep, weight) for `wellness_days`.
 
     Returns {"status": "active"|"needs_reauth"|"error", "imported": int, "error": str|None}.
     Never raises: failures are recorded on the connection row.
@@ -128,7 +232,8 @@ def sync_connection(conn: dict, limit: int = 20, everything: bool = False) -> di
             return {"status": "active", "imported": 0, "error": None}
         _active.add(cid)
     try:
-        return _sync_connection(cid, uid, limit, everything)
+        days = wellness_days or (WELLNESS_DAYS_BACKFILL if everything else WELLNESS_DAYS)
+        return _sync_connection(cid, uid, limit, everything, days)
     finally:
         with _active_lock:
             _active.discard(cid)
@@ -153,7 +258,7 @@ def _login_from_tokens(token_json: str) -> Garmin:
     return g
 
 
-def _sync_connection(cid: str, uid: str, limit: int, everything: bool = False) -> dict:
+def _sync_connection(cid: str, uid: str, limit: int, everything: bool, wellness_days: int) -> dict:
     try:
         stored = db.select("provider_tokens", {"connection_id": f"eq.{cid}", "select": "token_blob"})
         if not stored or not stored[0].get("token_blob"):
@@ -185,6 +290,8 @@ def _sync_connection(cid: str, uid: str, limit: int, everything: bool = False) -
                 break
             start += page
             time.sleep(BACKFILL_PAUSE_S)  # be gentle with Garmin
+
+        sync_wellness(g, uid, wellness_days)
 
         # The library may have refreshed the session; keep the newest tokens.
         fresh = g.client.dumps()

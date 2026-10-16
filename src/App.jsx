@@ -13,29 +13,46 @@ import { STRAVA_ENABLED, garminApi } from './lib/api.js';
 import { useSession } from './hooks/useSession.js';
 import { useActivities } from './hooks/useActivities.js';
 import { useConnections } from './hooks/useConnections.js';
+import { useDailyMetrics } from './hooks/useDailyMetrics.js';
 import { usePullToRefresh } from './hooks/usePullToRefresh.js';
 import AuthForm from './components/AuthForm.jsx';
 import Connections from './components/Connections.jsx';
 import Dashboard from './components/Dashboard.jsx';
+import GlanceSection from './components/GlanceSection.jsx';
+import SectionNav from './components/SectionNav.jsx';
 import Snackbar from './components/Snackbar.jsx';
 import Spinner from './components/Spinner.jsx';
+
+// Header pills, in page order. Each id matches an element id on the page.
+const SECTIONS = [
+  { id: 'glance', label: 'At a Glance' },
+  { id: 'predictions', label: 'Race predictions' },
+  { id: 'paces', label: 'Training paces' },
+  { id: 'trends', label: 'Trends' },
+  { id: 'dynamics', label: 'Running dynamics' },
+  { id: 'connections', label: 'Connections' },
+];
+
+// "0.4.0" -> "0.4", "0.4.1" -> "0.4.1"
+const VERSION = __APP_VERSION__.replace(/\.0$/, '');
 
 export default function App() {
   const session = useSession();
   const userId = session?.user?.id;
   const { activities, loading, reload: reloadActivities } = useActivities(userId);
   const { connections, reload } = useConnections(userId);
+  const { days, reload: reloadDays } = useDailyMetrics(userId);
   const [notice, setNotice] = useState(null); // { type: 'info' | 'error', text }
   const [signingOut, setSigningOut] = useState(false);
   const clearNotice = useCallback(() => setNotice(null), []);
 
   const refresh = useCallback(async () => {
     try {
-      await Promise.all([reloadActivities(), reload()]);
+      await Promise.all([reloadActivities(), reload(), reloadDays()]);
     } catch (e) {
       setNotice({ type: 'error', text: `Refresh failed: ${e.message}` });
     }
-  }, [reloadActivities, reload]);
+  }, [reloadActivities, reload, reloadDays]);
   const { pull, refreshing, ready } = usePullToRefresh(refresh);
   const stravaHandled = useRef(false); // StrictMode runs effects twice in dev
 
@@ -93,7 +110,7 @@ export default function App() {
         </div>
       </div>
 
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-2 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-white">Training Metrics</h1>
         <button
           disabled={signingOut}
@@ -109,14 +126,25 @@ export default function App() {
         </button>
       </header>
 
+      <SectionNav sections={SECTIONS} />
+
       <div className="space-y-6">
+        <section id="glance" className="scroll-mt-16">
+          <h2 className="mb-2 text-sm font-medium text-slate-300">At a Glance</h2>
+          <GlanceSection activities={activities} days={days} />
+        </section>
         <Dashboard
           activities={activities}
+          days={days}
           loading={loading}
           hasConnection={Object.keys(connections).length > 0}
         />
-        <Connections connections={connections} onNotice={setNotice} onChanged={reload} />
+        <div id="connections" className="scroll-mt-16">
+          <Connections connections={connections} onNotice={setNotice} onChanged={reload} />
+        </div>
       </div>
+
+      <footer className="mt-10 text-center text-[11px] text-slate-600">Training Tracker · v{VERSION}</footer>
 
       <Snackbar notice={notice} onClose={clearNotice} />
     </div>

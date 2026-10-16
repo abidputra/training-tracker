@@ -19,7 +19,14 @@ const RANGES = [
 
 const signed = (d, fmt) => `${d > 0 ? '+' : d < 0 ? '−' : ''}${fmt(Math.abs(d))}`;
 
-export default function Dashboard({ activities, loading, hasConnection }) {
+/** Anchor targets for the header pills (scroll-mt clears the sticky nav). */
+const Anchor = ({ id, children, className = '' }) => (
+  <div id={id} className={`scroll-mt-16 ${className}`}>
+    {children}
+  </div>
+);
+
+export default function Dashboard({ activities, days, loading, hasConnection }) {
   const [range, setRange] = useState('12w');
   const runs = useMemo(() => getRuns(activities), [activities]);
   const shown = useMemo(() => filterRange(runs, range), [runs, range]);
@@ -36,50 +43,52 @@ export default function Dashboard({ activities, loading, hasConnection }) {
 
   return (
     <div className="space-y-4">
-      <PredictionCard fit={fit} />
-      <PaceTableCard fit={fit} />
+      <Anchor id="predictions"><PredictionCard fit={fit} /></Anchor>
+      <Anchor id="paces"><PaceTableCard fit={fit} /></Anchor>
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-slate-300">Trends · {runs.length} runs</h2>
-        <div className="flex gap-1 rounded-lg bg-slate-900 p-1">
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              onClick={() => setRange(r.key)}
-              className={`rounded-md px-2.5 py-1 text-xs ${
-                range === r.key ? 'bg-slate-700 text-white' : 'text-slate-400'
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
+      <Anchor id="trends" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-slate-300">Trends · {runs.length} runs</h2>
+          <div className="flex gap-1 rounded-lg bg-slate-900 p-1">
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                onClick={() => setRange(r.key)}
+                className={`rounded-md px-2.5 py-1 text-xs ${
+                  range === r.key ? 'bg-slate-700 text-white' : 'text-slate-400'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <TrendCard
-        title="Pace"
-        runs={shown}
-        allRuns={runs}
-        get={(r) => r.pace}
-        fmt={(v) => paceSec(v)}
-        fmtDelta={(d) => `${signed(d, paceSec)} /km`}
-        unit="/km"
-        higherIsUp={false}
-        color="#38bdf8"
-      />
-      <TrendCard
-        title="Heart rate"
-        runs={shown}
-        allRuns={runs}
-        get={(r) => r.hr}
-        fmt={(v) => String(Math.round(v))}
-        fmtDelta={(d) => `${signed(d, (x) => Math.round(x))} bpm`}
-        unit="bpm"
-        higherIsUp
-        color="#f87171"
-      />
+        <TrendCard
+          title="Pace"
+          runs={shown}
+          allRuns={runs}
+          get={(r) => r.pace}
+          fmt={(v) => paceSec(v)}
+          fmtDelta={(d) => `${signed(d, paceSec)} /km`}
+          unit="/km"
+          higherIsUp={false}
+          color="#38bdf8"
+        />
+        <TrendCard
+          title="Heart rate"
+          runs={shown}
+          allRuns={runs}
+          get={(r) => r.hr}
+          fmt={(v) => String(Math.round(v))}
+          fmtDelta={(d) => `${signed(d, (x) => Math.round(x))} bpm`}
+          unit="bpm"
+          higherIsUp
+          color="#f87171"
+        />
+      </Anchor>
 
-      <DynamicsCard runs={runs} />
+      <Anchor id="dynamics"><DynamicsCard runs={runs} days={days} /></Anchor>
     </div>
   );
 }
