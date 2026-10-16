@@ -40,8 +40,8 @@ const SECTIONS = [
 
 const TITLES = { metrics: 'Training Metrics', history: 'Activity History' };
 
-// "0.4.0" -> "0.4", "0.4.1" -> "0.4.1"
-const VERSION = __APP_VERSION__.replace(/\.0$/, '');
+// "0.5.0" -> "0.5", "0.5.0-r1" -> "0.5r1", "0.5.1" -> "0.5.1"
+const VERSION = __APP_VERSION__.replace(/\.0-r(\d+)$/, 'r$1').replace(/\.0$/, '');
 
 export default function App() {
   const session = useSession();
