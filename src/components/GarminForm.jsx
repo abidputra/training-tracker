@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import { garminApi } from '../lib/api.js';
+import Spinner from './Spinner.jsx';
 
 export default function GarminForm({ onDone, onCancel }) {
   const [step, setStep] = useState('creds'); // 'creds' | 'mfa'
@@ -63,7 +64,8 @@ export default function GarminForm({ onDone, onCancel }) {
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex gap-2">
-        <button disabled={busy} className="flex-1 rounded-xl bg-emerald-500 px-4 py-2.5 font-medium text-slate-950 disabled:opacity-50">
+        <button disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 font-medium text-slate-950 disabled:opacity-50">
+          {busy && <Spinner />}
           {busy ? 'Working…' : step === 'creds' ? 'Connect' : 'Verify'}
         </button>
         <button type="button" onClick={onCancel} className="rounded-xl px-4 py-2.5 text-slate-400">

@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { STRAVA_ENABLED, garminApi, startStravaOAuth } from '../lib/api.js';
 import { timeAgo } from '../lib/format.js';
 import GarminForm from './GarminForm.jsx';
+import Spinner from './Spinner.jsx';
 
 function Badge({ conn }) {
   if (!conn) return <span className="text-slate-500">Not connected</span>;
@@ -18,8 +19,16 @@ function Badge({ conn }) {
   return <span className="text-emerald-400">Connected · synced {timeAgo(conn.last_synced_at)}</span>;
 }
 
-const btn = 'rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-200 disabled:opacity-50';
-const btnPrimary = 'rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-slate-950 disabled:opacity-50';
+const btn = 'flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-200 disabled:opacity-50';
+const btnPrimary = 'flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-slate-950 disabled:opacity-50';
+
+/** Label with a spinner in front while `loading`. */
+const Busy = ({ loading, children }) => (
+  <>
+    {loading && <Spinner />}
+    {children}
+  </>
+);
 
 export default function Connections({ connections, onNotice, onChanged }) {
   const [showGarmin, setShowGarmin] = useState(false);
@@ -62,7 +71,7 @@ export default function Connections({ connections, onNotice, onChanged }) {
         ) : (
           <div className="flex gap-2">
             <button
-              disabled={busy === 'strava-all'}
+              disabled={!!busy}
               className={btn}
               title="Imports your entire Strava history in the background"
               onClick={() => run(
@@ -71,15 +80,15 @@ export default function Connections({ connections, onNotice, onChanged }) {
                 'Importing your Strava history. Runs appear as they arrive, this can take a few minutes.',
               )}
             >
-              {busy === 'strava-all' ? 'Starting…' : 'Import all'}
+              <Busy loading={busy === 'strava-all'}>{busy === 'strava-all' ? 'Starting…' : 'Import all'}</Busy>
             </button>
             <button
-              disabled={busy === 'strava-off'}
+              disabled={!!busy}
               className={btn}
               onClick={() => confirmDisconnect('Strava') &&
                 run('strava-off', () => garminApi('/strava/disconnect', { method: 'DELETE' }), 'Strava disconnected.')}
             >
-              Disconnect
+              <Busy loading={busy === 'strava-off'}>{busy === 'strava-off' ? 'Disconnecting…' : 'Disconnect'}</Busy>
             </button>
           </div>
         )}
@@ -93,7 +102,7 @@ export default function Connections({ connections, onNotice, onChanged }) {
             <div className="font-medium text-white">Garmin</div>
             <div className="text-xs"><Badge conn={garmin} /></div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {garminNeedsLogin ? (
               !showGarmin && (
                 <button onClick={() => setShowGarmin(true)} className={btnPrimary}>
@@ -103,14 +112,14 @@ export default function Connections({ connections, onNotice, onChanged }) {
             ) : (
               <>
                 <button
-                  disabled={busy === 'garmin-sync'}
+                  disabled={!!busy}
                   className={btn}
                   onClick={() => run('garmin-sync', () => garminApi('/garmin/sync'))}
                 >
-                  {busy === 'garmin-sync' ? 'Syncing…' : 'Sync now'}
+                  <Busy loading={busy === 'garmin-sync'}>{busy === 'garmin-sync' ? 'Syncing…' : 'Sync now'}</Busy>
                 </button>
                 <button
-                  disabled={busy === 'garmin-all'}
+                  disabled={!!busy}
                   className={btn}
                   title="Imports your entire Garmin history in the background"
                   onClick={() => run(
@@ -119,15 +128,15 @@ export default function Connections({ connections, onNotice, onChanged }) {
                     'Importing your full history. Runs appear here as they arrive, this can take a few minutes.',
                   )}
                 >
-                  {busy === 'garmin-all' ? 'Starting…' : 'Import all'}
+                  <Busy loading={busy === 'garmin-all'}>{busy === 'garmin-all' ? 'Starting…' : 'Import all'}</Busy>
                 </button>
                 <button
-                  disabled={busy === 'garmin-off'}
+                  disabled={!!busy}
                   className={btn}
                   onClick={() => confirmDisconnect('Garmin') &&
                     run('garmin-off', () => garminApi('/garmin/disconnect', { method: 'DELETE' }), 'Garmin disconnected.')}
                 >
-                  Disconnect
+                  <Busy loading={busy === 'garmin-off'}>{busy === 'garmin-off' ? 'Disconnecting…' : 'Disconnect'}</Busy>
                 </button>
               </>
             )}

@@ -29,7 +29,7 @@ export default function AuthForm() {
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
       <h1 className="mb-1 text-2xl font-semibold text-white">Training Tracker</h1>
-      <p className="mb-6 text-sm text-slate-400">Garmin and Strava, one live page.</p>
+      <p className="mb-6 text-sm text-slate-400">Your Garmin training, one live page.</p>
 
       <form onSubmit={submit} className="space-y-3">
         <input
@@ -68,6 +68,8 @@ export default function AuthForm() {
       <button
         onClick={() => {
           setMode(mode === 'signin' ? 'signup' : 'signin');
+          setEmail('');
+          setPassword('');
           setMessage(null);
         }}
         className="mt-6 text-sm text-slate-400 underline"

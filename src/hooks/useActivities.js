@@ -9,7 +9,7 @@
  * RLS applies to Realtime too, so only the signed-in user's rows arrive.
  * (DELETE events carry only the primary key `id`, which is all we need.)
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 
 const PAGE = 1000; // Supabase's default max rows per request
@@ -113,5 +113,17 @@ export function useActivities(userId) {
     };
   }, [userId]);
 
-  return { activities, loading };
+  // Manual refresh (pull-to-refresh / refresh button): refetch everything.
+  // Realtime keeps things live, but a phone that slept may have missed events.
+  const reload = useCallback(async () => {
+    if (!userId) return;
+    try {
+      setActivities(await fetchAllRuns());
+    } catch (e) {
+      console.error('reloading activities failed:', e.message);
+      throw e;
+    }
+  }, [userId]);
+
+  return { activities, loading, reload };
 }
