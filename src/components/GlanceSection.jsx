@@ -4,7 +4,7 @@
  * To add or remove a card, edit CARDS below. Each entry's `build(ctx)` gets
  * { runs, days } and returns the card content, or null for "no data yet".
  * An optional `pick(i)` makes the chart tappable: it returns the
- * { value, sub } to show for point i (tap the same point again to reset).
+ * { value, sub, badge? } to show for point i (tap the same point again to reset).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getRuns } from '../lib/analysis.js';
@@ -91,13 +91,21 @@ const CARDS = [
     build: ({ days }) => {
       const d = latest(days, 'sleep_score');
       if (!d) return null;
+      const nights = days.filter((n) => n.sleep_score != null).slice(-14);
+      const badge = (n) =>
+        n.sleep_quality ? { text: title(n.sleep_quality), className: SLEEP_TONE[n.sleep_quality] ?? 'bg-slate-700 text-slate-200' } : null;
+      const sub = (n) => `Slept ${hoursMinutes(n.sleep_seconds)}${n.resting_hr ? ` · resting HR ${Math.round(n.resting_hr)}` : ''}`;
       return {
         value: Math.round(d.sleep_score),
         unit: '/ 100',
-        badge: d.sleep_quality ? { text: title(d.sleep_quality), className: SLEEP_TONE[d.sleep_quality] ?? 'bg-slate-700 text-slate-200' } : null,
-        sub: `Slept ${hoursMinutes(d.sleep_seconds)}${d.resting_hr ? ` · resting HR ${Math.round(d.resting_hr)}` : ''}`,
+        badge: badge(d),
+        sub: sub(d),
         spark: { type: 'bars', points: series(days, 'sleep_score', 14), color: '#38bdf8' },
-        foot: `${dayLabel(d.t)} · last 14 nights`,
+        foot: `${dayLabel(d.t)} · last 14 nights · tap a bar`,
+        pick: (i) => {
+          const n = nights[i];
+          return { value: Math.round(n.sleep_score), sub: `${dayLabel(n.t)} · ${sub(n)}`, badge: badge(n) };
+        },
       };
     },
   },
@@ -126,14 +134,15 @@ function GlanceCard({ card, data }) {
   const picked = data?.pick && sel != null ? data.pick(sel) : null;
   const value = picked?.value ?? data?.value;
   const sub = picked?.sub ?? data?.sub;
+  const badge = picked && 'badge' in picked ? picked.badge : data?.badge;
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-slate-700 bg-slate-900 p-4">
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{card.label}</span>
-        {data?.badge && (
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${data.badge.className}`}>
-            {data.badge.text}
+        {badge && (
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
+            {badge.text}
           </span>
         )}
       </div>

@@ -7,11 +7,29 @@ body,
   min-height: 100%;
 }
 
+/* Top inset: the iPhone status bar plus a little breathing room, so the header
+   and sticky pills sit below the area iOS blurs/fades at the top of the screen. */
+:root {
+  --top-inset: calc(env(safe-area-inset-top) + 0.75rem);
+}
+
 body {
   background: #0f172a;
   color: #e2e8f0;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--top-inset);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Solid strip behind the status bar so scrolled content never shows (or gets
+   blurred) underneath it. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--top-inset);
+  background: #0f172a;
+  z-index: 35;
+  pointer-events: none;
 }

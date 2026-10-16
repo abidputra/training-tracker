@@ -54,7 +54,7 @@ export default function SectionNav({ sections }) {
   return (
     <nav
       className="sticky z-30 -mx-4 mb-4 bg-[#0f172a]/90 py-1 backdrop-blur"
-      style={{ top: 'env(safe-area-inset-top)' }}
+      style={{ top: 'var(--top-inset)' }}
     >
       <div
         ref={row}

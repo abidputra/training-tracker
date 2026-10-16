@@ -21,7 +21,7 @@ const signed = (d, fmt) => `${d > 0 ? '+' : d < 0 ? '−' : ''}${fmt(Math.abs(d)
 
 /** Anchor targets for the header pills (scroll-mt clears the sticky nav). */
 const Anchor = ({ id, children, className = '' }) => (
-  <div id={id} className={`scroll-mt-16 ${className}`}>
+  <div id={id} className={`scroll-mt-[calc(var(--top-inset)+3.5rem)] ${className}`}>
     {children}
   </div>
 );

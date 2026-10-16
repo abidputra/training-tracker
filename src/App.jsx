@@ -129,7 +129,7 @@ export default function App() {
       <SectionNav sections={SECTIONS} />
 
       <div className="space-y-6">
-        <section id="glance" className="scroll-mt-16">
+        <section id="glance" className="scroll-mt-[calc(var(--top-inset)+3.5rem)]">
           <h2 className="mb-2 text-sm font-medium text-slate-300">At a Glance</h2>
           <GlanceSection activities={activities} days={days} />
         </section>
@@ -139,7 +139,7 @@ export default function App() {
           loading={loading}
           hasConnection={Object.keys(connections).length > 0}
         />
-        <div id="connections" className="scroll-mt-16">
+        <div id="connections" className="scroll-mt-[calc(var(--top-inset)+3.5rem)]">
           <Connections connections={connections} onNotice={setNotice} onChanged={reload} />
         </div>
       </div>
