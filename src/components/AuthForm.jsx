@@ -1,29 +1,70 @@
-/** Email + password sign in / sign up (Supabase Auth). */
+/**
+ * Sign in / sign up (Supabase Auth).
+ *   Sign in: email OR username + password. A username is turned into the
+ *            account's email through the email_for_username() function.
+ *   Sign up: username + email + password. Username is checked for availability
+ *            first, and stored in the signup metadata (copied to `profiles` by a trigger).
+ */
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { USERNAME_HELP, isValidUsername, normalizeUsername } from '../lib/username.js';
+
+const input =
+  'w-full rounded-xl bg-slate-900 px-4 py-3 text-base outline-none ring-1 ring-slate-800 focus:ring-emerald-500';
 
 export default function AuthForm() {
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+  const [identifier, setIdentifier] = useState(''); // sign in: email or username
+  const [username, setUsername] = useState(''); // sign up
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'error' | 'info', text }
 
+  async function signIn() {
+    let email = identifier.trim();
+    if (!email.includes('@')) {
+      const { data, error } = await supabase.rpc('email_for_username', { uname: normalizeUsername(email) });
+      if (error) throw error;
+      // Same message as a wrong password, so the form does not reveal which usernames exist.
+      if (!data) throw new Error('Invalid login credentials');
+      email = data;
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  }
+
+  async function signUp() {
+    const uname = normalizeUsername(username);
+    if (!isValidUsername(uname)) throw new Error(`Invalid username. ${USERNAME_HELP}`);
+    const { data: free, error: checkError } = await supabase.rpc('username_available', { uname });
+    if (checkError) throw checkError;
+    if (!free) throw new Error('That username is already taken.');
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username: uname } },
+    });
+    if (error) throw error;
+    // With email confirmation enabled, signUp returns no session until the link is clicked.
+    if (!data.session) {
+      setMessage({ type: 'info', text: 'Check your email to confirm your account, then sign in.' });
+    }
+  }
+
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
     setMessage(null);
-    const { data, error } =
-      mode === 'signin'
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
-    setBusy(false);
-    if (error) return setMessage({ type: 'error', text: error.message });
-    // With email confirmation enabled, signUp returns no session until the link is clicked.
-    if (mode === 'signup' && !data.session) {
-      setMessage({ type: 'info', text: 'Check your email to confirm your account, then sign in.' });
+    try {
+      if (mode === 'signin') await signIn();
+      else await signUp();
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setBusy(false);
     }
-    return undefined;
   }
 
   return (
@@ -32,15 +73,38 @@ export default function AuthForm() {
       <p className="mb-6 text-sm text-slate-400">Your Garmin training, one live page.</p>
 
       <form onSubmit={submit} className="space-y-3">
-        <input
-          type="email"
-          required
-          autoComplete="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-xl bg-slate-900 px-4 py-3 text-base outline-none ring-1 ring-slate-800 focus:ring-emerald-500"
-        />
+        {mode === 'signin' ? (
+          <input
+            type="text"
+            required
+            autoComplete="username"
+            placeholder="Email or username"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            className={input}
+          />
+        ) : (
+          <>
+            <input
+              type="text"
+              required
+              autoComplete="username"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className={input}
+            />
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={input}
+            />
+          </>
+        )}
         <input
           type="password"
           required
@@ -49,7 +113,7 @@ export default function AuthForm() {
           placeholder="Password (8+ characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-xl bg-slate-900 px-4 py-3 text-base outline-none ring-1 ring-slate-800 focus:ring-emerald-500"
+          className={input}
         />
         <button
           disabled={busy}
@@ -68,6 +132,8 @@ export default function AuthForm() {
       <button
         onClick={() => {
           setMode(mode === 'signin' ? 'signup' : 'signin');
+          setIdentifier('');
+          setUsername('');
           setEmail('');
           setPassword('');
           setMessage(null);
