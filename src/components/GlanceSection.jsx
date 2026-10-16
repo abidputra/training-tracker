@@ -3,8 +3,10 @@
  *
  * To add or remove a card, edit CARDS below. Each entry's `build(ctx)` gets
  * { runs, days } and returns the card content, or null for "no data yet".
+ * An optional `pick(i)` makes the chart tappable: it returns the
+ * { value, sub } to show for point i (tap the same point again to reset).
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getRuns } from '../lib/analysis.js';
 import { dayLabel, hoursMinutes, latest, recentHr, series, weeklyDistance } from '../lib/glance.js';
 import Sparkline from './Sparkline.jsx';
@@ -47,7 +49,15 @@ const CARDS = [
         unit: 'km',
         sub: `This week · last week ${prev.toFixed(1)} km`,
         spark: { type: 'bars', points: weeks, color: '#34d399' },
-        foot: 'Mon–Sun, last 8 weeks',
+        foot: 'Mon–Sun, last 8 weeks · tap a bar',
+        pick: (i) => {
+          const w = weeks[i];
+          const end = new Date(w.t);
+          end.setDate(end.getDate() + 6);
+          const fmt = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+          const name = i === weeks.length - 1 ? 'This week' : i === weeks.length - 2 ? 'Last week' : `${fmt(w.t)} – ${fmt(end)}`;
+          return { value: w.v.toFixed(1), sub: `${name} · ${w.n} run${w.n === 1 ? '' : 's'}` };
+        },
       };
     },
   },
@@ -111,6 +121,12 @@ const CARDS = [
 ];
 
 function GlanceCard({ card, data }) {
+  const [sel, setSel] = useState(null);
+  useEffect(() => setSel(null), [data?.spark?.points?.length]); // new data shape: drop a stale pick
+  const picked = data?.pick && sel != null ? data.pick(sel) : null;
+  const value = picked?.value ?? data?.value;
+  const sub = picked?.sub ?? data?.sub;
+
   return (
     <div className="flex h-full flex-col rounded-2xl border border-slate-700 bg-slate-900 p-4">
       <div className="flex items-center justify-between gap-2">
@@ -124,12 +140,16 @@ function GlanceCard({ card, data }) {
       {data ? (
         <>
           <div className="mt-1 flex items-baseline gap-1">
-            <span className="text-3xl font-semibold text-white">{data.value}</span>
+            <span className="text-3xl font-semibold text-white">{value}</span>
             <span className="text-sm text-slate-400">{data.unit}</span>
           </div>
-          <div className="text-xs text-slate-400">{data.sub}</div>
+          <div className={`text-xs ${picked ? 'text-emerald-300' : 'text-slate-400'}`}>{sub}</div>
           <div className="mt-auto pt-3">
-            <Sparkline {...data.spark} />
+            <Sparkline
+              {...data.spark}
+              selected={sel}
+              onSelect={data.pick ? (i) => setSel((cur) => (cur === i ? null : i)) : undefined}
+            />
             <div className="mt-1 text-[11px] text-slate-500">{data.foot}</div>
           </div>
         </>

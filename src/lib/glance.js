@@ -13,7 +13,7 @@ function weekStart(t) {
   return d.getTime();
 }
 
-/** Running km per calendar week (Mon–Sun), the last `weeks` weeks, oldest first. */
+/** Running km (`v`) and run count (`n`) per calendar week (Mon–Sun), the last `weeks` weeks, oldest first. */
 export function weeklyDistance(runs, weeks = 8, now = Date.now()) {
   const thisWeek = weekStart(now);
   const out = [];
@@ -23,8 +23,9 @@ export function weeklyDistance(runs, weeks = 8, now = Date.now()) {
     const lo = d.getTime();
     const end = new Date(lo);
     end.setDate(end.getDate() + 7);
-    const km = runs.filter((r) => r.t >= lo && r.t < end.getTime()).reduce((s, r) => s + r.distance, 0) / 1000;
-    out.push({ t: lo, v: km });
+    const inWeek = runs.filter((r) => r.t >= lo && r.t < end.getTime());
+    const km = inWeek.reduce((sum, r) => sum + r.distance, 0) / 1000;
+    out.push({ t: lo, v: km, n: inWeek.length });
   }
   return out;
 }
