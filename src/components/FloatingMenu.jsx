@@ -13,7 +13,7 @@ export default function FloatingMenu({ view, onChange }) {
   return (
     <nav
       aria-label="Views"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] lg:hidden"
     >
       <div className="pointer-events-auto flex w-full max-w-[358px] gap-1 rounded-full border border-line-strong bg-black p-1">
         {VIEWS.map((v) => {

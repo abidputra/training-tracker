@@ -37,21 +37,23 @@ export default function RouteLine({ points, distance, name = 'Activity', start }
   return (
     <div className="flex flex-col gap-4">
       <DotGrid grid={grid} className="w-full" label="Route of this activity" />
-      <div className="flex items-center justify-between gap-3 text-xs text-muted">
-        <span className="flex items-center gap-2">
-          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-white" />
-          Start
-        </span>
-        {distance && (
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center justify-between gap-3 text-xs text-muted lg:justify-start lg:gap-6">
           <span className="flex items-center gap-2">
-            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-accent" />
-            {distance}
+            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-white" />
+            Start
           </span>
-        )}
+          {distance && (
+            <span className="flex items-center gap-2">
+              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-accent" />
+              {distance}
+            </span>
+          )}
+        </div>
+        <button onClick={download} className="btn w-full lg:w-auto">
+          <Icon name="download" /> Download GPX
+        </button>
       </div>
-      <button onClick={download} className="btn w-full">
-        <Icon name="download" /> Download GPX
-      </button>
     </div>
   );
 }

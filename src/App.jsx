@@ -22,6 +22,7 @@ import { useDailyMetrics } from './hooks/useDailyMetrics.js';
 import { useProfile } from './hooks/useProfile.js';
 import { useSyncAll } from './hooks/useSyncAll.js';
 import { usePullToRefresh } from './hooks/usePullToRefresh.js';
+import ActivityDetail from './components/ActivityDetail.jsx';
 import ActivityHistory from './components/ActivityHistory.jsx';
 import AuthForm from './components/AuthForm.jsx';
 import Dashboard from './components/Dashboard.jsx';
@@ -35,6 +36,7 @@ import Snackbar from './components/Snackbar.jsx';
 import Spinner from './components/Spinner.jsx';
 import StrengthMetrics from './components/StrengthMetrics.jsx';
 import SyncButton, { LastSynced } from './components/SyncButton.jsx';
+import TopBar from './components/TopBar.jsx';
 import { Icon, SectionHead } from './components/ui.jsx';
 
 // Sport tabs on the metrics view. Adding a sport = one entry here plus its page.
@@ -75,7 +77,7 @@ export default function App() {
   const { days, reload: reloadDays } = useDailyMetrics(userId);
   const { profile, reload: reloadProfile } = useProfile(userId);
   const [sport, setSport] = useState('running');
-  const [sub, setSub] = useState(null); // strength sub-page: { exercise }
+  const [sub, setSub] = useState(null); // strength sub-page: { exercise } | { activity, from }
   const strength = view === 'metrics' && sport === 'strength';
   // Strength metrics are built from the full activity list (it carries the exercise summaries).
   const history = useActivityHistory(userId, view === 'history' || strength);
@@ -168,46 +170,44 @@ export default function App() {
   const inSettings = view === 'settings';
   const wide = view === 'metrics' && !sub; // desktop: the full-width dashboard
 
+  // sync button + profile menu: in the phone header and in the desktop top bar
+  const controls = (
+    <>
+      <SyncButton syncing={syncing} onClick={sync} />
+      <ProfileMenu
+        username={profile?.username}
+        email={session.user.email}
+        signingOut={signingOut}
+        onSettings={() => changeView('settings')}
+        onSignOut={signOut}
+      />
+    </>
+  );
+
+  // desktop only: the big title above the running dashboard
+  const hero = wide && sport === 'running' && (
+    <div className="mb-14 hidden lg:block">
+      <div className="mb-3 flex items-center gap-2.5 text-xs tracking-[0.14em] text-muted uppercase">
+        <span className="h-2.5 w-2.5 rounded-full bg-accent" />
+        <span>Live{lastSynced ? ' · all sources synced' : ''}</span>
+      </div>
+      <h1 className="m-0 font-dot text-[clamp(44px,8vw,112px)] leading-[0.92] font-black tracking-[0.02em] uppercase">
+        All-in-One
+        <br />
+        Training Tracker
+      </h1>
+    </div>
+  );
+
   const header = (
-    <header className="mb-4 flex items-center justify-between gap-3 lg:mb-14 lg:flex-wrap lg:items-end lg:gap-6">
+    <header className="mb-4 flex items-center justify-between gap-3 lg:hidden">
       <div className="min-w-0">
-        {wide && (
-          <div className="mb-3 hidden items-center gap-2.5 text-xs tracking-[0.14em] text-muted uppercase lg:flex">
-            <span className="h-2.5 w-2.5 rounded-full bg-accent" />
-            <span>Live{lastSynced ? ' · all sources synced' : ''}</span>
-          </div>
-        )}
-        <h1
-          className={`m-0 font-dot font-black tracking-[0.03em] uppercase ${
-            view === 'history' ? 'text-[30px]' : 'text-2xl'
-          } ${wide ? 'lg:text-[clamp(44px,8vw,112px)] lg:leading-[0.92]' : ''}`}
-        >
-          {wide ? (
-            <>
-              <span className="lg:hidden">Training Metrics</span>
-              <span className="hidden lg:inline">
-                All-in-One
-                <br />
-                Training Tracker
-              </span>
-            </>
-          ) : (
-            TITLES[view]
-          )}
+        <h1 className={`m-0 font-dot font-black tracking-[0.03em] uppercase ${view === 'history' ? 'text-[30px]' : 'text-2xl'}`}>
+          {wide ? 'Training Metrics' : TITLES[view]}
         </h1>
-        <LastSynced iso={lastSynced} className="mt-1 lg:hidden" />
+        <LastSynced iso={lastSynced} className="mt-1" />
       </div>
-      <div className="flex shrink-0 items-center gap-2 lg:gap-3">
-        <LastSynced iso={lastSynced} className="hidden tracking-[0.12em] uppercase lg:block" />
-        <SyncButton syncing={syncing} onClick={sync} />
-        <ProfileMenu
-          username={profile?.username}
-          email={session.user.email}
-          signingOut={signingOut}
-          onSettings={() => changeView('settings')}
-          onSignOut={signOut}
-        />
-      </div>
+      <div className="flex shrink-0 items-center gap-2">{controls}</div>
     </header>
   );
 
@@ -234,12 +234,16 @@ export default function App() {
         name={sub.exercise}
         sessions={sessions}
         onBack={() => setSub(null)}
+        onOpenActivity={(a) => setSub({ activity: a, from: sub })}
       />
     );
+  } else if (sub?.activity) {
+    metrics = <ActivityDetail activity={sub.activity} onBack={() => setSub(sub.from ?? null)} />;
   } else {
     metrics = (
       <>
         {sportTabs}
+        {hero}
         <SectionNav key={sport} sections={SECTIONS[sport]} />
         {sport === 'running' ? (
           <div className="flex flex-col gap-8 lg:gap-14">
@@ -268,7 +272,11 @@ export default function App() {
   }
 
   return (
-    <div className={`mx-auto px-4 pb-28 pt-4 ${wide ? 'max-w-md lg:max-w-[1280px] lg:px-6 lg:pt-10' : view === 'history' ? 'max-w-md lg:max-w-4xl' : 'max-w-md'}`}>
+    <div className="mx-auto max-w-md px-4 pb-28 pt-4 lg:max-w-[1280px] lg:px-6 lg:pb-16 lg:pt-4">
+      <TopBar view={view} onChange={changeView} lastSynced={lastSynced} connections={connections}>
+        {controls}
+      </TopBar>
+
       {/* pull-to-refresh indicator */}
       {!inSettings && (
         <div

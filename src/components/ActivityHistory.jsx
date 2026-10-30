@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { headlineStats } from '../lib/activityStats.js';
 import { SPORT_FAMILIES, sportFamily, sportInfo } from '../lib/format.js';
 import ActivityDetail from './ActivityDetail.jsx';
-import { Empty } from './ui.jsx';
+import { Empty, Icon } from './ui.jsx';
 
 const monthLabel = (iso) => new Date(iso).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 const dateLabel = (iso) => {
@@ -29,21 +29,57 @@ function groupByMonth(items) {
   return groups;
 }
 
-/** Sticky chip row: "All" plus one chip per sport present, most frequent first. */
-function SportFilter({ families, total, value, onChange }) {
+/** "All" plus one chip per sport present, most frequent first. */
+function Chips({ families, total, value, onChange }) {
   const chip = (key, label, count, active) => (
     <button key={key} onClick={() => onChange(key)} aria-pressed={active} className={active ? 'pill-on' : 'pill'}>
       {label} {count}
     </button>
   );
-
   return (
-    <nav aria-label="Filter by sport" className="sticky z-30 -mx-4 mb-3 bg-black py-1" style={{ top: 'var(--top-inset)' }}>
+    <>
+      {chip('all', 'All', total, value === 'all')}
+      {families.map((f) => chip(f.key, f.label, f.count, value === f.key))}
+    </>
+  );
+}
+
+/** Phone: sticky chip row under the page title. */
+function SportFilter(props) {
+  return (
+    <nav aria-label="Filter by sport" className="sticky z-30 -mx-4 mb-3 bg-black py-1 lg:hidden" style={{ top: 'var(--top-inset)' }}>
       <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-1">
-        {chip('all', 'All', total, value === 'all')}
-        {families.map((f) => chip(f.key, f.label, f.count, value === f.key))}
+        <Chips {...props} />
       </div>
     </nav>
+  );
+}
+
+const ROW = 'grid-cols-[20px_2.4fr_1fr_1fr_1fr_1fr_24px]';
+
+/** Desktop: one table row. Dot | name + date | source | three numbers | chevron. */
+function ActivityRow({ activity, onOpen }) {
+  const info = sportInfo(activity.sport_type);
+  const isRun = sportFamily(activity.sport_type) === 'run';
+  return (
+    <button
+      onClick={() => onOpen(activity)}
+      className={`grid min-h-[88px] w-full ${ROW} items-center gap-5 border-b border-dotted border-line text-left last:border-b-0 hover:bg-neutral-950`}
+    >
+      <span aria-hidden="true" className={`h-3 w-3 rounded-full ${isRun ? 'bg-accent' : 'bg-white'}`} />
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <span className="font-dot text-base leading-[1.1] font-bold break-words">{activity.name || info.label}</span>
+        <span className="text-xs text-muted">{dateLabel(activity.start_time)}</span>
+      </div>
+      <span className="text-xs tracking-[0.12em] text-muted uppercase">{activity.provider === 'strava' ? 'Strava' : 'Garmin'}</span>
+      {headlineStats(activity).map(([label, value]) => (
+        <div key={label} className="flex min-w-0 flex-col gap-1">
+          <span className="text-xs text-muted">{label}</span>
+          <span className="text-base font-bold tabular-nums">{value}</span>
+        </div>
+      ))}
+      <Icon name="chevron" className="text-muted" />
+    </button>
   );
 }
 
@@ -60,7 +96,7 @@ function ActivityCard({ activity, onOpen }) {
             <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${isRun ? 'bg-accent' : 'bg-white'}`} />
             {info.label}
           </div>
-          <div className="font-dot text-2xl leading-[1.1] font-bold break-words">{activity.name || info.label}</div>
+          <div className="font-dot text-base leading-[1.1] font-bold break-words">{activity.name || info.label}</div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2 text-right">
           <span className="text-xs text-muted">{dateLabel(activity.start_time)}</span>
@@ -124,21 +160,46 @@ export default function ActivityHistory({ items, loading, error, onRetry }) {
   }
   if (items.length === 0) return <Empty>No activities yet. Connect Garmin in Settings to import your history.</Empty>;
 
+  const filterProps = { families, total: items.length, value: active, onChange: setSport };
+
   return (
     <div>
-      {families.length > 1 && (
-        <SportFilter families={families} total={items.length} value={active} onChange={setSport} />
-      )}
+      {/* desktop: page title with the filter chips on the right */}
+      <div className="mb-10 hidden items-end justify-between gap-6 lg:flex">
+        <h1 className="m-0 font-dot text-[64px] leading-[0.95] font-black tracking-[0.02em] uppercase">Activity History</h1>
+        {families.length > 1 && (
+          <div className="flex gap-2">
+            <Chips {...filterProps} />
+          </div>
+        )}
+      </div>
+      {families.length > 1 && <SportFilter {...filterProps} />}
       <div className="flex flex-col gap-5">
-        <p className="m-0 text-xs text-muted">
+        <p className="m-0 text-xs text-muted lg:hidden">
           {active === 'all' ? `${items.length} activities` : `${visible.length} of ${items.length} activities`}
         </p>
         {groups.map((g) => (
           <section key={g.label} className="flex flex-col gap-3">
-            <h2 className="title m-0 mt-2">{g.label}</h2>
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <h2 className="title m-0 mt-2 lg:mt-0 lg:font-mono lg:text-xs lg:font-normal lg:tracking-[0.14em] lg:text-muted">{g.label}</h2>
+            {/* phone: cards */}
+            <div className="grid grid-cols-1 gap-3 lg:hidden">
               {g.items.map((a) => (
                 <ActivityCard key={a.id} activity={a} onOpen={setOpen} />
+              ))}
+            </div>
+            {/* desktop: table */}
+            <div className="card hidden px-7 py-1 lg:block">
+              <div className={`rule grid ${ROW} gap-5 pt-[18px] pb-3 text-xs tracking-[0.12em] text-muted uppercase`}>
+                <span />
+                <span>Activity</span>
+                <span>Source</span>
+                <span>Metric</span>
+                <span>Metric</span>
+                <span>Metric</span>
+                <span />
+              </div>
+              {g.items.map((a) => (
+                <ActivityRow key={a.id} activity={a} onOpen={setOpen} />
               ))}
             </div>
           </section>

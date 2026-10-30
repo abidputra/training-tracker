@@ -26,7 +26,7 @@ async function confirmPassword(email, password) {
 /** A settings section: plain label plus content. */
 function Card({ title, children }) {
   return (
-    <section className="flex flex-col gap-2.5">
+    <section className="flex flex-col gap-2.5 lg:card lg:p-7 lg:gap-3">
       <h2 className="m-0 text-sm font-normal">{title}</h2>
       {children}
     </section>
@@ -245,12 +245,18 @@ export default function Settings({ session, profile, connections, onBack, onNoti
   const userId = session.user.id;
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-8">
+    <div className="mx-auto flex max-w-md flex-col gap-8 lg:max-w-none lg:gap-10">
       <header className="flex items-center gap-3.5">
-        <CircleButton icon="back" label="Back" onClick={onBack} />
-        <h1 className="m-0 font-dot text-[30px] font-black tracking-[0.03em] uppercase">Settings</h1>
+        <span className="lg:hidden">
+          <CircleButton icon="back" label="Back" onClick={onBack} />
+        </span>
+        <h1 className="m-0 font-dot text-[30px] font-black tracking-[0.03em] uppercase lg:text-[64px] lg:leading-[0.95] lg:tracking-[0.02em]">
+          Settings
+        </h1>
       </header>
 
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start lg:gap-6">
+        <div className="flex flex-col gap-8 lg:gap-6">
       {profile === undefined ? (
         <p className="py-8 text-center text-sm text-muted">Loading…</p>
       ) : (
@@ -273,10 +279,14 @@ export default function Settings({ session, profile, connections, onBack, onNoti
         <PasswordForm email={email} onNotice={onNotice} />
       </Card>
 
+        </div>
+        <div className="flex flex-col gap-8 lg:gap-6">
       <AccentPicker userId={userId} onNotice={onNotice} onSaved={onProfileChanged} />
 
       {/* Connections has its own card, so it is rendered without a wrapper here. */}
       <Connections connections={connections} onNotice={onNotice} onChanged={onConnectionsChanged} />
+        </div>
+      </div>
     </div>
   );
 }
