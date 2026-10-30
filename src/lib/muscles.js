@@ -6,7 +6,7 @@
  * practical mapping (prime movers = primary, helpers = secondary), not a
  * measurement. Intensity is weighted SETS: each set counts 1 for a primary
  * muscle and 0.5 for a secondary one. Muscle ids are those of
- * `react-body-highlighter`, which draws the figures.
+ * the dot figures in lib/dots.js.
  *
  * Pure functions, no React.
  */

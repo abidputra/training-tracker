@@ -1,46 +1,61 @@
 /** Training pace table (recovery, Z2, easy, tempo, threshold, interval) with HR ranges. */
 import { ZONES, hrAtFraction, paceAtFraction } from '../lib/analysis.js';
+import { meter } from '../lib/dots.js';
 import { paceSec } from '../lib/format.js';
+import DotGrid from './DotGrid.jsx';
+import { Note, SectionHead } from './ui.jsx';
+
+// Desktop meter: zones light up progressively, 20 dots for the hardest.
+const METERS = ZONES.map((_, i) => meter(Math.round(((i + 1) / ZONES.length) * 20) || 1, 20, { tail: true }));
 
 export default function PaceTableCard({ fit }) {
   return (
-    <section className="rounded-2xl bg-slate-900 p-4">
-      <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Training paces</h2>
+    <section className="flex flex-col lg:card lg:gap-5 lg:p-7">
+      <SectionHead n="03" title="Training Paces" />
 
       {!fit ? (
-        <p className="text-sm text-slate-500">Needs at least one run of 3 km or more in the last 90 days.</p>
+        <Note>Needs at least one run of 3 km or more in the last 90 days.</Note>
       ) : (
-        <>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500">
-                <th className="pb-1 font-medium">Zone</th>
-                <th className="pb-1 text-right font-medium">Pace /km</th>
-                {fit.maxHr && <th className="pb-1 text-right font-medium">HR</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {ZONES.map((z) => (
-                <tr key={z.key} className="border-t border-slate-800">
-                  <td className="py-2 text-slate-300">{z.key}</td>
-                  <td className="py-2 text-right font-semibold text-white">
-                    {paceSec(paceAtFraction(fit.vdot, z.lo))}–{paceSec(paceAtFraction(fit.vdot, z.hi))}
-                  </td>
-                  {fit.maxHr && (
-                    <td className="py-2 text-right text-xs text-slate-400">
-                      {hrAtFraction(fit.maxHr, z.lo)}–{hrAtFraction(fit.maxHr, z.hi)}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+        <div className="flex flex-col gap-3.5">
+          <div className="card px-5 py-4 lg:border-0 lg:p-0">
+            <div className="rule grid grid-cols-[1.1fr_1.2fr_1fr] gap-2 pb-2.5 text-xs tracking-[0.12em] text-muted lg:hidden">
+              <span>ZONE</span>
+              <span className="text-right">PACE /KM</span>
+              {fit.maxHr && <span className="text-right">HR</span>}
+            </div>
+            {ZONES.map((z, i) => {
+              const pace = `${paceSec(paceAtFraction(fit.vdot, z.lo))}–${paceSec(paceAtFraction(fit.vdot, z.hi))}`;
+              const hr = fit.maxHr ? `${hrAtFraction(fit.maxHr, z.lo)}–${hrAtFraction(fit.maxHr, z.hi)}` : null;
+              return (
+                <div key={z.key}>
+                  {/* phone: three-column table */}
+                  <div className="grid grid-cols-[1.1fr_1.2fr_1fr] items-center gap-2 border-b border-dotted border-line py-3.5 text-[13px] lg:hidden">
+                    <span>{z.key}</span>
+                    <span className="text-right">{pace}</span>
+                    {hr && <span className="text-right text-muted">{hr}</span>}
+                  </div>
+                  {/* desktop: numbered zone, dot meter, pace and HR */}
+                  <div className="rule hidden flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3 lg:flex">
+                    <div className="flex min-w-[150px] items-baseline gap-3">
+                      <span className="num text-[28px]">{String(i + 1).padStart(2, '0')}</span>
+                      <span className="eyebrow">{z.key}</span>
+                    </div>
+                    <DotGrid grid={METERS[i]} style={{ gridTemplateColumns: 'repeat(20, 8px)' }} gap={2} />
+                    <div className="min-w-[130px] text-right text-sm">
+                      {pace} <span className="text-xs text-muted">/KM</span>
+                      {hr && <div className="mt-1 text-xs text-muted">{hr} bpm</div>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <Note>
             Derived from VDOT {fit.vdot.toFixed(1)}
-            {fit.maxHr ? ` and your highest recorded HR (${fit.maxHr} bpm)` : ''}. Treat the HR column as a guide;
-            use your own HR zones if you have tested them.
-          </p>
-        </>
+            {fit.maxHr ? ` and your highest recorded HR (${fit.maxHr} bpm)` : ''}. Treat the HR column as a guide; use
+            your own HR zones if you have tested them.
+          </Note>
+        </div>
       )}
     </section>
   );

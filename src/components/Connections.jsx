@@ -13,14 +13,30 @@ import GarminForm from './GarminForm.jsx';
 import Spinner from './Spinner.jsx';
 
 function Badge({ conn }) {
-  if (!conn) return <span className="text-slate-500">Not connected</span>;
-  if (conn.status === 'needs_reauth') return <span className="text-amber-400">Needs reconnect</span>;
-  if (conn.status === 'error') return <span className="text-amber-400">Sync issue, retrying</span>;
-  return <span className="text-emerald-400">Connected · synced {timeAgo(conn.last_synced_at)}</span>;
+  let dot = 'bg-accent';
+  let text = `Connected · synced ${timeAgo(conn?.last_synced_at)}`;
+  if (!conn) [dot, text] = ['bg-line-strong', 'Not connected'];
+  else if (conn.status === 'needs_reauth') [dot, text] = ['bg-white', 'Needs reconnect'];
+  else if (conn.status === 'error') [dot, text] = ['bg-white', 'Sync issue, retrying'];
+  return (
+    <span className="flex items-center gap-2 text-xs">
+      <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
+      {text}
+    </span>
+  );
 }
 
-const btn = 'flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-200 disabled:opacity-50';
-const btnPrimary = 'flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-slate-950 disabled:opacity-50';
+/** Provider name and status on one line. */
+const Header = ({ name, conn }) => (
+  <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="font-dot text-[26px] font-black">{name}</div>
+    <Badge conn={conn} />
+  </div>
+);
+
+const btn = 'btn';
+const btnPrimary = 'btn-primary';
+const btnDanger = 'btn border-accent text-accent'; // disconnect: outlined, destructive
 
 /** Label with a spinner in front while `loading`. */
 const Busy = ({ loading, children }) => (
@@ -54,22 +70,20 @@ export default function Connections({ connections, onNotice, onChanged }) {
     window.confirm(`Disconnect ${name}? Its imported activities will be deleted from this app.`);
 
   return (
-    <section className="rounded-2xl bg-slate-900 p-4">
-      <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Connections</h2>
+    <section className="flex flex-col gap-3.5">
+      <h2 className="eyebrow m-0 font-normal">Connections</h2>
+      <div className="card flex flex-col p-5">
 
       {/* Strava (hidden unless VITE_ENABLE_STRAVA=true) */}
       {STRAVA_ENABLED && (
-      <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
-        <div>
-          <div className="font-medium text-white">Strava</div>
-          <div className="text-xs"><Badge conn={strava} /></div>
-        </div>
+      <div className="rule flex flex-col gap-4 pb-5">
+        <Header name="Strava" conn={strava} />
         {!strava || strava.status === 'needs_reauth' ? (
           <button onClick={startStravaOAuth} className={btnPrimary}>
             {strava ? 'Reconnect' : 'Connect'}
           </button>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               disabled={!!busy}
               className={btn}
@@ -84,7 +98,7 @@ export default function Connections({ connections, onNotice, onChanged }) {
             </button>
             <button
               disabled={!!busy}
-              className={btn}
+              className={btnDanger}
               onClick={() => confirmDisconnect('Strava') &&
                 run('strava-off', () => garminApi('/strava/disconnect', { method: 'DELETE' }), 'Strava disconnected.')}
             >
@@ -96,13 +110,10 @@ export default function Connections({ connections, onNotice, onChanged }) {
       )}
 
       {/* Garmin */}
-      <div className={STRAVA_ENABLED ? 'pt-3' : ''}>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="font-medium text-white">Garmin</div>
-            <div className="text-xs"><Badge conn={garmin} /></div>
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
+      <div className={STRAVA_ENABLED ? 'pt-5' : ''}>
+        <div className="flex flex-col gap-4">
+          <Header name="Garmin" conn={garmin} />
+          <div className="flex flex-wrap gap-2">
             {garminNeedsLogin ? (
               !showGarmin && (
                 <button onClick={() => setShowGarmin(true)} className={btnPrimary}>
@@ -125,7 +136,7 @@ export default function Connections({ connections, onNotice, onChanged }) {
                 </button>
                 <button
                   disabled={!!busy}
-                  className={btn}
+                  className={btnDanger}
                   onClick={() => confirmDisconnect('Garmin') &&
                     run('garmin-off', () => garminApi('/garmin/disconnect', { method: 'DELETE' }), 'Garmin disconnected.')}
                 >
@@ -146,6 +157,7 @@ export default function Connections({ connections, onNotice, onChanged }) {
             }}
           />
         )}
+      </div>
       </div>
     </section>
   );

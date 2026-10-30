@@ -1,6 +1,6 @@
 /**
  * Bottom snackbar for app notices ({ type: 'info' | 'error', text }).
- * Auto-dismisses (errors stay a little longer); tap or ✕ closes it early.
+ * Sits above the floating menu. Auto-dismisses (errors stay a little longer); tap or ✕ closes it early.
  * A new notice resets the timer.
  */
 import { useEffect } from 'react';
@@ -18,18 +18,18 @@ export default function Snackbar({ notice, onClose }) {
   return (
     <div
       className="pointer-events-none fixed inset-x-0 z-50 flex justify-center px-4"
-      style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
+      style={{ bottom: 'calc(env(safe-area-inset-bottom) + 5.5rem)' }}
     >
       <div
         role={isError ? 'alert' : 'status'}
         onClick={onClose}
-        className={`pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl px-4 py-3 text-sm shadow-lg shadow-black/40 ring-1 ${
-          isError ? 'bg-red-950 text-red-200 ring-red-500/40' : 'bg-slate-800 text-slate-100 ring-emerald-500/40'
+        className={`pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-2xl border bg-black px-4 py-3.5 text-sm ${
+          isError ? 'border-accent' : 'border-line-strong'
         }`}
       >
-        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isError ? 'bg-red-400' : 'bg-emerald-400'}`} />
+        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isError ? 'bg-accent' : 'bg-white'}`} />
         <span className="flex-1">{notice.text}</span>
-        <button aria-label="Dismiss" className="-mr-1 px-1 text-slate-400">
+        <button aria-label="Dismiss" className="-mr-1 px-1 text-muted">
           ✕
         </button>
       </div>

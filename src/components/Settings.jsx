@@ -1,19 +1,21 @@
 /**
- * Settings page: username, email, password and provider connections.
+ * Settings page: username, email, password, accent colour and provider connections.
  * Email and password changes ask for the current password first, so someone
  * with an open session on a shared phone cannot lock the owner out.
  */
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { USERNAME_HELP, isValidUsername, normalizeUsername } from '../lib/username.js';
+import { ACCENTS, saveAccent, useAccent } from '../lib/accent.js';
+import { meter } from '../lib/dots.js';
 import Connections from './Connections.jsx';
+import DotGrid from './DotGrid.jsx';
+import { CircleButton } from './ui.jsx';
 import Spinner from './Spinner.jsx';
 import PasswordInput from './PasswordInput.jsx';
 
-const input =
-  'w-full rounded-xl bg-slate-950 px-4 py-3 text-base outline-none ring-1 ring-slate-800 focus:ring-emerald-500';
-const save =
-  'flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-medium text-slate-950 disabled:opacity-50';
+const input = 'field';
+const save = 'btn-primary self-start';
 
 /** Re-checks the current password by signing in with it. Throws a friendly error. */
 async function confirmPassword(email, password) {
@@ -21,12 +23,60 @@ async function confirmPassword(email, password) {
   if (error) throw new Error('Current password is incorrect.');
 }
 
-/** A settings card: title plus content. */
+/** A settings section: plain label plus content. */
 function Card({ title, children }) {
   return (
-    <section className="rounded-2xl bg-slate-900 p-4">
-      <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">{title}</h2>
+    <section className="flex flex-col gap-2.5">
+      <h2 className="m-0 text-sm font-normal">{title}</h2>
       {children}
+    </section>
+  );
+}
+
+const PREVIEW = meter(16, 24, { tail: true });
+
+/** Accent colour swatches; the whole app recolours on tap. Saved to this account only. */
+function AccentPicker({ userId, onNotice, onSaved }) {
+  const current = useAccent();
+  const [saving, setSaving] = useState(false);
+  const pick = async (id) => {
+    if (id === current.id || saving) return;
+    setSaving(true);
+    try {
+      await saveAccent(userId, id);
+      onSaved();
+    } catch (e) {
+      onNotice({ type: 'error', text: e.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <section className="flex flex-col gap-3.5">
+      <h2 className="eyebrow m-0 font-normal">Accent color</h2>
+      <div className="card flex flex-col gap-[18px] p-5">
+        <DotGrid grid={PREVIEW} label="Preview of the selected accent color on a dot bar" />
+        <div className="flex flex-wrap gap-2.5">
+          {ACCENTS.map((a) => (
+            <button
+              key={a.id}
+              aria-label={a.name}
+              aria-pressed={a.id === current.id}
+              disabled={saving}
+              onClick={() => pick(a.id)}
+              className={`flex h-12 w-12 items-center justify-center rounded-full border-2 bg-black p-1 ${
+                a.id === current.id ? 'border-white' : 'border-line-strong'
+              }`}
+            >
+              <span className="h-full w-full rounded-full" style={{ background: a.hex }} />
+            </button>
+          ))}
+        </div>
+        <p className="m-0 text-xs leading-relaxed text-muted">
+          {current.name}. Used for charts, highlights and buttons across the app. Colors are tuned to stay bright on
+          black. Saved to your account, so it only changes the app for you.
+        </p>
+      </div>
     </section>
   );
 }
@@ -71,7 +121,7 @@ function UsernameForm({ userId, current, onNotice, onSaved }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <form onSubmit={submit} className="flex flex-col gap-2.5">
       <input
         type="text"
         required
@@ -81,7 +131,7 @@ function UsernameForm({ userId, current, onNotice, onSaved }) {
         onChange={(e) => setValue(e.target.value)}
         className={input}
       />
-      <p className="text-xs text-slate-500">{USERNAME_HELP} You can sign in with it.</p>
+      <p className="m-0 text-xs leading-relaxed text-muted">{USERNAME_HELP} You can sign in with it.</p>
       <button disabled={busy} className={save}>
         {busy && <Spinner />} Save username
       </button>
@@ -108,8 +158,8 @@ function EmailForm({ email, onNotice }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
-      <p className="text-sm text-slate-400">Current: <span className="text-slate-200">{email}</span></p>
+    <form onSubmit={submit} className="flex flex-col gap-2.5">
+      <p className="m-0 text-[13px] text-muted">Current: <span className="text-white">{email}</span></p>
       <input
         type="email"
         required
@@ -156,7 +206,7 @@ function PasswordForm({ email, onNotice }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <form onSubmit={submit} className="flex flex-col gap-2.5">
       <PasswordInput
         required
         autoComplete="current-password"
@@ -195,20 +245,14 @@ export default function Settings({ session, profile, connections, onBack, onNoti
   const userId = session.user.id;
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          aria-label="Back"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-lg text-slate-200 ring-1 ring-slate-700 active:bg-slate-700"
-        >
-          ‹
-        </button>
-        <h1 className="text-xl font-semibold text-white">Settings</h1>
+    <div className="mx-auto flex max-w-md flex-col gap-8">
+      <header className="flex items-center gap-3.5">
+        <CircleButton icon="back" label="Back" onClick={onBack} />
+        <h1 className="m-0 font-dot text-[30px] font-black tracking-[0.03em] uppercase">Settings</h1>
       </header>
 
       {profile === undefined ? (
-        <p className="py-8 text-center text-sm text-slate-500">Loading…</p>
+        <p className="py-8 text-center text-sm text-muted">Loading…</p>
       ) : (
         <Card title="Username">
           <UsernameForm
@@ -228,6 +272,8 @@ export default function Settings({ session, profile, connections, onBack, onNoti
       <Card title="Password">
         <PasswordForm email={email} onNotice={onNotice} />
       </Card>
+
+      <AccentPicker userId={userId} onNotice={onNotice} onSaved={onProfileChanged} />
 
       {/* Connections has its own card, so it is rendered without a wrapper here. */}
       <Connections connections={connections} onNotice={onNotice} onChanged={onConnectionsChanged} />

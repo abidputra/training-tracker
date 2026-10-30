@@ -152,10 +152,14 @@ export function summaryRows(activity, raw = {}) {
   return rows.filter(([, value]) => value != null);
 }
 
+/** Display name of one Garmin exercise summary ("BARBELL_BENCH_PRESS" -> "Barbell Bench Press"). */
+export const exerciseName = (e) => titleCase(String(e.subCategory || e.category || 'Exercise'));
+
 /** One line per exercise for the detail view: name, sets/reps, heaviest and total weight. */
 export function exerciseRows(activity, raw) {
   return exercisesOf(activity, raw).map((e) => ({
-    name: titleCase(String(e.subCategory || e.category || 'Exercise')),
+    name: exerciseName(e),
+    volumeG: pos(e.volume),
     detail: [pos(e.sets) && `${round(e.sets)} sets`, pos(e.reps) && `${round(e.reps)} reps`].filter(Boolean).join(' · '),
     weight: fmt(pos(e.maxWeight), (g) => `max ${kg(g)}`),
     volume: fmt(pos(e.volume), (g) => `${kg(g)} total`),

@@ -2,15 +2,20 @@
  * Floating pill menu pinned to the bottom of the screen. Switches between the
  * top-level views. Settings is not in here: it is opened from the profile menu.
  */
+import { Icon } from './ui.jsx';
+
 export const VIEWS = [
-  { key: 'metrics', label: 'Training Metric', icon: '📊' },
-  { key: 'history', label: 'Activity History', icon: '🗂️' },
+  { key: 'metrics', label: 'Metrics', icon: 'metrics' },
+  { key: 'history', label: 'History', icon: 'history' },
 ];
 
 export default function FloatingMenu({ view, onChange }) {
   return (
-    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
-      <div className="pointer-events-auto flex gap-1 rounded-full bg-slate-900/95 p-1.5 shadow-2xl ring-1 ring-slate-700 backdrop-blur">
+    <nav
+      aria-label="Views"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+    >
+      <div className="pointer-events-auto flex w-full max-w-[358px] gap-1 rounded-full border border-line-strong bg-black p-1">
         {VIEWS.map((v) => {
           const active = view === v.key;
           return (
@@ -18,11 +23,11 @@ export default function FloatingMenu({ view, onChange }) {
               key={v.key}
               onClick={() => onChange(v.key)}
               aria-current={active ? 'page' : undefined}
-              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                active ? 'bg-emerald-500 text-slate-950' : 'text-slate-300 active:bg-slate-800'
+              className={`flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full text-[13px] ${
+                active ? 'bg-accent font-bold text-black' : 'text-white active:bg-neutral-900'
               }`}
             >
-              <span aria-hidden="true">{v.icon}</span>
+              <Icon name={v.icon} />
               {v.label}
             </button>
           );

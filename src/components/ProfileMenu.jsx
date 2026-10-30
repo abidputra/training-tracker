@@ -32,23 +32,23 @@ export default function ProfileMenu({ username, email, signingOut, onSettings, o
         onClick={() => setOpen((o) => !o)}
         aria-label="Profile menu"
         aria-expanded={open}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 text-sm font-semibold text-slate-950 ring-1 ring-slate-700 active:opacity-80"
+        className="num flex h-11 w-11 items-center justify-center rounded-full bg-accent pt-0.5 text-[22px] text-black active:opacity-80"
       >
         {initial}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-40 w-56 overflow-hidden rounded-xl bg-slate-900 shadow-2xl ring-1 ring-slate-800">
-          <div className="border-b border-slate-800 px-4 py-3">
-            <div className="font-medium text-white">Hi, {name}</div>
-            <div className="truncate text-xs text-slate-500">{email}</div>
+        <div className="card absolute right-0 top-[52px] z-40 w-60 overflow-hidden rounded-2xl border-line-strong">
+          <div className="rule px-4 py-3.5">
+            <div className="font-dot text-lg font-bold">Hi, {name}</div>
+            <div className="truncate text-xs text-muted">{email}</div>
           </div>
           <button
             onClick={() => {
               setOpen(false);
               onSettings();
             }}
-            className="block w-full px-4 py-3 text-left text-sm text-slate-200 active:bg-slate-800"
+            className="block min-h-12 w-full px-4 py-3 text-left text-sm text-white active:bg-neutral-900"
           >
             Settings
           </button>
@@ -58,7 +58,7 @@ export default function ProfileMenu({ username, email, signingOut, onSettings, o
               setOpen(false);
               onSignOut();
             }}
-            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-red-400 active:bg-slate-800 disabled:opacity-50"
+            className="flex min-h-12 w-full items-center gap-2 px-4 py-3 text-left text-sm text-accent active:bg-neutral-900 disabled:opacity-50"
           >
             {signingOut && <Spinner />}
             Sign out

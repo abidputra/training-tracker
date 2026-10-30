@@ -6,7 +6,7 @@
 const DAY = 86_400_000;
 
 /** Local Monday 00:00 of the week containing `t`. */
-function weekStart(t) {
+export function weekStart(t) {
   const d = new Date(t);
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));

@@ -8,9 +8,12 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { DEFAULT_RANGE, RANGES, filterRange, rolling, windowAvg } from '../lib/analysis.js';
+import { columns } from '../lib/dots.js';
 import { dayLabel } from '../lib/glance.js';
 import Drawer from './Drawer.jsx';
+import DotGrid from './DotGrid.jsx';
 import LineChart from './LineChart.jsx';
+import { Note, RangePills, SectionHead } from './ui.jsx';
 
 const METRICS = [
   {
@@ -50,15 +53,16 @@ const WEIGHT = {
 
 const DAY = 86_400_000;
 
+/** Change vs the previous 30 days. A decline is drawn in the accent, an improvement in white. */
 function Delta({ delta, digits, better }) {
   if (delta == null) return null;
   const threshold = 0.5 * 10 ** -digits;
-  if (Math.abs(delta) < threshold) return <span className="text-slate-500">–</span>;
+  if (Math.abs(delta) < threshold) return <span className="text-muted">–</span>;
   const up = delta > 0;
   const good = better === null ? null : (better === 'up') === up;
-  const tone = good === null ? 'text-slate-400' : good ? 'text-emerald-400' : 'text-amber-400';
+  const tone = good === null ? 'text-muted' : good ? 'text-white' : 'text-accent';
   return (
-    <span className={tone}>
+    <span className={`font-bold ${tone}`}>
       {up ? '▲' : '▼'} {Math.abs(delta).toFixed(digits)}
     </span>
   );
@@ -66,11 +70,12 @@ function Delta({ delta, digits, better }) {
 
 function InfoIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-      <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M10 9v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="10" cy="6.25" r="1" fill="currentColor" />
-    </svg>
+    <span
+      aria-hidden="true"
+      className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[#666] text-[10px] leading-none text-muted"
+    >
+      i
+    </span>
   );
 }
 
@@ -85,9 +90,9 @@ function weightSummary(days) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-xl bg-slate-800/60 px-3 py-2">
-      <div className="text-[11px] text-slate-400">{label}</div>
-      <div className="text-sm font-semibold text-white">{value}</div>
+    <div className="rounded-2xl border border-line px-3.5 py-3">
+      <div className="text-xs text-muted">{label}</div>
+      <div className="mt-1 text-sm font-bold">{value}</div>
     </div>
   );
 }
@@ -114,7 +119,7 @@ function Detail({ metric, runs, weight }) {
       { label: 'Lowest', value: vals.length ? `${fmt(Math.min(...vals))}${u}` : '–' },
       { label: 'Highest', value: vals.length ? `${fmt(Math.max(...vals))}${u}` : '–' },
     ];
-    note = 'Dots are weigh-ins; the line is a 7-day rolling average.';
+    note = 'Dots are weigh-ins; the accent line is a 7-day rolling average.';
     if (weight?.last.source === 'profile') note = `No recent weigh-ins, showing your Garmin profile weight (${dayLabel(weight.last.t)}).`;
   } else {
     const get = (r) => r[metric.key];
@@ -135,40 +140,26 @@ function Detail({ metric, runs, weight }) {
         : { label: 'Range', value: vals.length ? `${fmt(Math.min(...vals))}–${fmt(Math.max(...vals))}` : '–' },
       { label: 'Runs with data', value: String(withData.length) },
     ];
-    note = 'Dots are single runs; the line is a 4-week rolling average.';
+    note = 'Dots are single runs; the accent line is a 4-week rolling average.';
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <div className="flex gap-1 rounded-lg bg-slate-800 p-1">
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              title={r.name}
-              onClick={() => setRange(r.key)}
-              className={`rounded-md px-2.5 py-1 text-xs ${range === r.key ? 'bg-slate-600 text-white' : 'text-slate-400'}`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="flex flex-col gap-4">
+      <RangePills value={range} onChange={setRange} />
       <LineChart
         points={points}
         avg={avg}
         emptyText={metric.isWeight ? 'No weigh-ins in this range.' : undefined}
         fmt={(v) => fmt(v)}
         higherIsUp={metric.better !== 'down'}
-        color="#34d399"
       />
-      <p className="text-[11px] text-slate-500">{note}</p>
+      <Note>{note}</Note>
       <div className="grid grid-cols-2 gap-2">
         {stats.map((s) => <Stat key={s.label} {...s} />)}
       </div>
-      <div className="rounded-xl bg-slate-800/40 p-3">
-        <div className="mb-1 text-xs font-medium text-slate-300">What it means</div>
-        <p className="text-sm leading-relaxed text-slate-400">{metric.info}</p>
+      <div className="card p-4">
+        <div className="eyebrow mb-2">What it means</div>
+        <p className="m-0 text-sm leading-relaxed text-[#cfcfcf]">{metric.info}</p>
       </div>
     </div>
   );
@@ -184,9 +175,10 @@ export default function DynamicsCard({ runs, days = [] }) {
   const rows = METRICS.map((m) => {
     const cur = windowAvg(runs, (r) => r[m.key], anchor, 30);
     const prev = windowAvg(runs, (r) => r[m.key], anchor, 30, 30);
-    return { ...m, cur, delta: cur != null && prev != null ? cur - prev : null };
+    const recent = runs.map((r) => r[m.key]).filter((v) => v != null).slice(-12);
+    return { ...m, cur, recent, delta: cur != null && prev != null ? cur - prev : null };
   }).filter((m) => m.cur != null);
-  if (weight) rows.push({ ...WEIGHT, cur: weight.cur, delta: weight.delta });
+  if (weight) rows.push({ ...WEIGHT, cur: weight.cur, delta: weight.delta, recent: weight.pts.slice(-12).map((p) => p.weight) });
 
   const open = [...METRICS, WEIGHT].find((m) => m.key === openKey);
   const lastOpen = useRef(null); // keeps the content rendered while the drawer slides out
@@ -194,50 +186,63 @@ export default function DynamicsCard({ runs, days = [] }) {
   const shownMetric = open ?? lastOpen.current;
 
   return (
-    <section className="rounded-2xl bg-slate-900 p-4">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Running dynamics</h2>
-        {latestVo2 != null && (
-          <div className="text-right">
-            <div className="text-sm font-semibold text-white">{Math.round(latestVo2)}</div>
-            <div className="text-[11px] text-slate-400">VO₂max (Garmin)</div>
-          </div>
-        )}
-      </div>
+    <section>
+      <SectionHead
+        n="05"
+        title="Running Dynamics"
+        note={
+          latestVo2 != null && (
+            <>
+              <span className="lg:hidden">VO₂max </span>
+              <span className="hidden lg:inline">Last 30 days vs the 30 before · VO₂max </span>
+              <span className="font-bold text-white">{Math.round(latestVo2)}</span> (Garmin)
+            </>
+          )
+        }
+      />
 
       {rows.length === 0 ? (
-        <p className="text-sm text-slate-500">No running-dynamics data yet. Needs a watch or pod that records it.</p>
+        <Note>No running-dynamics data yet. Needs a watch or pod that records it.</Note>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
             {rows.map((m) => (
               <button
                 key={m.key}
                 onClick={() => setOpenKey(m.key)}
-                className="relative rounded-xl bg-slate-800/60 p-3 text-left transition-colors active:bg-slate-800"
+                aria-label={`${m.label}: ${m.cur.toFixed(m.digits)} ${m.unit}. Details`}
+                className="card flex min-h-[108px] flex-col justify-between gap-2.5 rounded-2xl p-4 text-left active:bg-neutral-950 lg:gap-4 lg:rounded-[20px] lg:p-6"
               >
-                <span className="absolute right-2.5 top-2.5 text-slate-500" aria-label={`About ${m.label}`}>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs text-muted lg:tracking-[0.12em] lg:uppercase">{m.label}</span>
                   <InfoIcon />
-                </span>
-                <div className="pr-5 text-[11px] text-slate-400">{m.label}</div>
-                <div className="mt-0.5 flex items-baseline gap-1">
-                  <span className="text-lg font-semibold text-white">{m.cur.toFixed(m.digits)}</span>
-                  <span className="text-xs text-slate-400">{m.unit}</span>
                 </div>
-                <div className="text-[11px]">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="num text-[34px] lg:text-[56px]">{m.cur.toFixed(m.digits)}</span>
+                  <span className="text-xs text-muted">{m.unit}</span>
+                  <span className="ml-auto hidden text-xs lg:inline">
+                    <Delta delta={m.delta} digits={m.digits} better={m.better} />
+                  </span>
+                </div>
+                <div className="text-xs lg:hidden">
                   {m.isWeight && m.delta == null ? (
-                    <span className="text-slate-500">{weight.last.source === 'profile' ? 'Garmin profile' : dayLabel(weight.last.t)}</span>
+                    <span className="text-muted">{weight.last.source === 'profile' ? 'Garmin profile' : dayLabel(weight.last.t)}</span>
                   ) : (
                     <Delta delta={m.delta} digits={m.digits} better={m.better} />
                   )}
                 </div>
+                {m.recent.length > 1 && (
+                  <div className="hidden w-full max-w-[156px] lg:block">
+                    <DotGrid grid={columns(m.recent, 6)} />
+                  </div>
+                )}
               </button>
             ))}
           </div>
-          <p className="mt-3 text-[11px] text-slate-500">
-            Last 30 days of running, with the change versus the 30 days before. Green is an improvement. Tap a
-            tile for details.
-          </p>
+          <Note className="mt-3.5">
+            Last 30 days of running, with the change versus the 30 days before. The accent marks a decline. Tap a tile
+            for details.
+          </Note>
         </>
       )}
 

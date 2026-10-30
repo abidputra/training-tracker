@@ -10,8 +10,7 @@ import { supabase } from '../lib/supabase.js';
 import { USERNAME_HELP, isValidUsername, normalizeUsername } from '../lib/username.js';
 import PasswordInput from './PasswordInput.jsx';
 
-const input =
-  'w-full rounded-xl bg-slate-900 px-4 py-3 text-base outline-none ring-1 ring-slate-800 focus:ring-emerald-500';
+const input = 'field';
 
 export default function AuthForm() {
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
@@ -75,10 +74,14 @@ export default function AuthForm() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
-      <h1 className="mb-1 text-2xl font-semibold text-white">Training Tracker</h1>
-      <p className="mb-6 text-sm text-slate-400">Your Garmin training, one live page.</p>
+      <h1 className="m-0 mb-3 font-dot text-[44px] leading-[0.92] font-black tracking-[0.02em] uppercase">
+        All-in-One
+        <br />
+        Training Tracker
+      </h1>
+      <p className="m-0 mb-8 text-sm text-muted">Your Garmin training, one live page.</p>
 
-      <form onSubmit={submit} className="space-y-3">
+      <form onSubmit={submit} className="flex flex-col gap-2.5">
         {mode === 'signin' ? (
           <input
             type="text"
@@ -122,14 +125,14 @@ export default function AuthForm() {
         />
         <button
           disabled={busy}
-          className="w-full rounded-xl bg-emerald-500 px-4 py-3 font-medium text-slate-950 disabled:opacity-50"
+          className="btn-primary mt-1 w-full"
         >
           {busy ? '…' : mode === 'signin' ? 'Sign in' : 'Create account'}
         </button>
       </form>
 
       {message && (
-        <p className={`mt-3 text-sm ${message.type === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>
+        <p className={`m-0 mt-3 text-sm ${message.type === 'error' ? 'text-accent' : 'text-white'}`}>
           {message.text}
         </p>
       )}
@@ -143,7 +146,7 @@ export default function AuthForm() {
           setPassword('');
           setMessage(null);
         }}
-        className="mt-6 text-sm text-slate-400 underline"
+        className="mt-6 text-sm text-muted underline"
       >
         {mode === 'signin' ? 'No account? Sign up' : 'Have an account? Sign in'}
       </button>

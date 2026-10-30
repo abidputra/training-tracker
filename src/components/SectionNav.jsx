@@ -53,12 +53,12 @@ export default function SectionNav({ sections }) {
 
   return (
     <nav
-      className="sticky z-30 -mx-4 mb-4 bg-[#0f172a] py-1"
+      className="sticky z-30 -mx-4 mb-6 bg-black py-1 lg:hidden"
       style={{ top: 'var(--top-inset)' }}
     >
       <div
         ref={row}
-        className="relative flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="no-scrollbar relative flex gap-2 overflow-x-auto px-4 py-1"
       >
         {sections
           .filter((s) => present.includes(s.id))
@@ -67,11 +67,8 @@ export default function SectionNav({ sections }) {
               key={s.id}
               data-id={s.id}
               onClick={() => go(s.id)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium ring-1 transition-colors ${
-                active === s.id
-                  ? 'bg-emerald-500 text-slate-950 ring-emerald-500'
-                  : 'bg-slate-900 text-slate-300 ring-slate-700'
-              }`}
+              aria-current={active === s.id ? 'true' : undefined}
+              className={active === s.id ? 'pill-on' : 'pill'}
             >
               {s.label}
             </button>

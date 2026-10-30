@@ -4,14 +4,18 @@
  * activity. Tapping a card opens ActivityDetail. Cards show only the summary
  * columns, so the list stays light even with a long history.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { headlineStats } from '../lib/activityStats.js';
 import { SPORT_FAMILIES, sportFamily, sportInfo } from '../lib/format.js';
 import ActivityDetail from './ActivityDetail.jsx';
+import { Empty } from './ui.jsx';
 
 const monthLabel = (iso) => new Date(iso).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-const dateLabel = (iso) =>
-  new Date(iso).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const dateLabel = (iso) => {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  return `${day} at ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+};
 
 /** Items are already newest first, so consecutive items share a month. */
 function groupByMonth(items) {
@@ -28,25 +32,16 @@ function groupByMonth(items) {
 /** Sticky chip row: "All" plus one chip per sport present, most frequent first. */
 function SportFilter({ families, total, value, onChange }) {
   const chip = (key, label, count, active) => (
-    <button
-      key={key}
-      onClick={() => onChange(key)}
-      aria-pressed={active}
-      className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium ring-1 transition-colors ${
-        active
-          ? 'bg-emerald-500 text-slate-950 ring-emerald-500'
-          : 'bg-slate-900 text-slate-300 ring-slate-700'
-      }`}
-    >
-      {label} <span className={active ? 'opacity-70' : 'text-slate-500'}>{count}</span>
+    <button key={key} onClick={() => onChange(key)} aria-pressed={active} className={active ? 'pill-on' : 'pill'}>
+      {label} {count}
     </button>
   );
 
   return (
-    <nav aria-label="Filter by sport" className="sticky z-30 -mx-4 mb-3 bg-[#0f172a] py-1" style={{ top: 'var(--top-inset)' }}>
-      <div className="flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav aria-label="Filter by sport" className="sticky z-30 -mx-4 mb-3 bg-black py-1" style={{ top: 'var(--top-inset)' }}>
+      <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-1">
         {chip('all', 'All', total, value === 'all')}
-        {families.map((f) => chip(f.key, `${f.icon} ${f.label}`, f.count, value === f.key))}
+        {families.map((f) => chip(f.key, f.label, f.count, value === f.key))}
       </div>
     </nav>
   );
@@ -54,34 +49,30 @@ function SportFilter({ families, total, value, onChange }) {
 
 function ActivityCard({ activity, onOpen }) {
   const info = sportInfo(activity.sport_type);
-  const provider = activity.provider === 'strava' ? 'Strava' : 'Garmin';
+  const provider = activity.provider === 'strava' ? 'STRAVA' : 'GARMIN';
+  const isRun = sportFamily(activity.sport_type) === 'run';
 
   return (
-    <button
-      onClick={() => onOpen(activity)}
-      className="w-full rounded-2xl bg-slate-900 p-4 text-left ring-1 ring-slate-800 active:bg-slate-800"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-xs capitalize text-slate-400">
-            <span aria-hidden="true">{info.icon}</span>
+    <button onClick={() => onOpen(activity)} className="card flex w-full flex-col gap-4 p-[18px] text-left active:bg-neutral-950">
+      <div className="flex w-full items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex items-center gap-2 text-xs text-muted capitalize">
+            <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${isRun ? 'bg-accent' : 'bg-white'}`} />
             {info.label}
           </div>
-          <div className="truncate font-medium text-white">{activity.name || info.label}</div>
+          <div className="font-dot text-2xl leading-[1.1] font-bold break-words">{activity.name || info.label}</div>
         </div>
-        <div className="shrink-0 text-right text-xs text-slate-400">
-          <div>{dateLabel(activity.start_time)}</div>
-          <div className="mt-1 inline-block rounded bg-slate-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-400">
-            {provider}
-          </div>
+        <div className="flex shrink-0 flex-col items-end gap-2 text-right">
+          <span className="text-xs text-muted">{dateLabel(activity.start_time)}</span>
+          <span className="rounded-full border border-line-strong px-2.5 py-0.5 text-xs tracking-[0.1em]">{provider}</span>
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="grid w-full grid-cols-3 gap-2">
         {headlineStats(activity).map(([label, value]) => (
-          <div key={label}>
-            <div className="text-[11px] text-slate-500">{label}</div>
-            <div className="font-semibold tabular-nums text-slate-100">{value}</div>
+          <div key={label} className="flex flex-col gap-1">
+            <span className="text-xs text-muted">{label}</span>
+            <span className="text-[15px] font-bold tabular-nums">{value}</span>
           </div>
         ))}
       </div>
@@ -113,45 +104,39 @@ export default function ActivityHistory({ items, loading, error, onRetry }) {
   );
   const groups = useMemo(() => groupByMonth(visible), [visible]);
 
+  // opening or closing a detail starts at the top of the page
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [open]);
+
   if (open) return <ActivityDetail activity={open} onBack={() => setOpen(null)} />;
 
-  if (loading && items.length === 0) {
-    return <p className="py-8 text-center text-sm text-slate-500">Loading…</p>;
-  }
+  if (loading && items.length === 0) return <Empty>Loading…</Empty>;
   if (error && items.length === 0) {
     return (
-      <div className="space-y-3 py-8 text-center text-sm">
-        <p className="text-red-400">Could not load activities: {error}</p>
-        <button
-          onClick={() => onRetry().catch(() => {})}
-          className="rounded-lg bg-slate-800 px-3 py-1.5 text-slate-200 ring-1 ring-slate-700"
-        >
+      <div className="flex flex-col items-center gap-3 py-8 text-sm">
+        <p className="m-0 text-accent">Could not load activities: {error}</p>
+        <button onClick={() => onRetry().catch(() => {})} className="btn">
           Try again
         </button>
       </div>
     );
   }
-  if (items.length === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-slate-500">
-        No activities yet. Connect Garmin in Settings to import your history.
-      </p>
-    );
-  }
+  if (items.length === 0) return <Empty>No activities yet. Connect Garmin in Settings to import your history.</Empty>;
 
   return (
     <div>
       {families.length > 1 && (
         <SportFilter families={families} total={items.length} value={active} onChange={setSport} />
       )}
-      <div className="space-y-6">
-        <p className="text-xs text-slate-500">
+      <div className="flex flex-col gap-5">
+        <p className="m-0 text-xs text-muted">
           {active === 'all' ? `${items.length} activities` : `${visible.length} of ${items.length} activities`}
         </p>
         {groups.map((g) => (
-          <section key={g.label}>
-            <h2 className="mb-2 text-sm font-medium text-slate-300">{g.label}</h2>
-            <div className="space-y-3">
+          <section key={g.label} className="flex flex-col gap-3">
+            <h2 className="title m-0 mt-2">{g.label}</h2>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {g.items.map((a) => (
                 <ActivityCard key={a.id} activity={a} onOpen={setOpen} />
               ))}

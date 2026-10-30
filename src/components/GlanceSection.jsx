@@ -9,21 +9,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getRuns } from '../lib/analysis.js';
 import { dayLabel, hoursMinutes, latest, recentHr, series, weeklyDistance } from '../lib/glance.js';
-import Sparkline from './Sparkline.jsx';
+import { bars, columns } from '../lib/dots.js';
+import DotGrid from './DotGrid.jsx';
 
+// Statuses worth flagging get the accent; the rest stay white.
 const HRV_TONE = {
-  BALANCED: { text: 'Balanced', className: 'bg-emerald-500/15 text-emerald-300' },
-  UNBALANCED: { text: 'Unbalanced', className: 'bg-amber-500/15 text-amber-300' },
-  LOW: { text: 'Low', className: 'bg-orange-500/15 text-orange-300' },
-  POOR: { text: 'Poor', className: 'bg-red-500/15 text-red-300' },
+  BALANCED: { text: 'Balanced' },
+  UNBALANCED: { text: 'Unbalanced' },
+  LOW: { text: 'Low', alert: true },
+  POOR: { text: 'Poor', alert: true },
 };
 
-const SLEEP_TONE = {
-  EXCELLENT: 'bg-emerald-500/15 text-emerald-300',
-  GOOD: 'bg-emerald-500/15 text-emerald-300',
-  FAIR: 'bg-amber-500/15 text-amber-300',
-  POOR: 'bg-red-500/15 text-red-300',
-};
+const SLEEP_ALERT = new Set(['POOR']);
 
 const title = (s) => s.charAt(0) + s.slice(1).toLowerCase();
 
@@ -48,7 +45,7 @@ const CARDS = [
         value: cur.toFixed(1),
         unit: 'km',
         sub: `This week · last week ${prev.toFixed(1)} km`,
-        spark: { type: 'bars', points: weeks, color: '#34d399' },
+        chart: { type: 'bars', points: weeks },
         foot: 'Mon–Sun, last 8 weeks · tap a bar',
         pick: (i) => {
           const w = weeks[i];
@@ -79,7 +76,7 @@ const CARDS = [
                 d.hrv_baseline_low != null ? ` · baseline ${Math.round(d.hrv_baseline_low)}–${Math.round(d.hrv_baseline_high)}` : ''
               }`
             : 'Last night average',
-        spark: { type: 'line', points: series(days, 'hrv_last_night', 14), color: '#a78bfa' },
+        chart: { type: 'columns', points: series(days, 'hrv_last_night', 14) },
         foot: `${dayLabel(d.t)} · last 14 nights`,
       };
     },
@@ -93,14 +90,14 @@ const CARDS = [
       if (!d) return null;
       const nights = days.filter((n) => n.sleep_score != null).slice(-14);
       const badge = (n) =>
-        n.sleep_quality ? { text: title(n.sleep_quality), className: SLEEP_TONE[n.sleep_quality] ?? 'bg-slate-700 text-slate-200' } : null;
+        n.sleep_quality ? { text: title(n.sleep_quality), alert: SLEEP_ALERT.has(n.sleep_quality) } : null;
       const sub = (n) => `Slept ${hoursMinutes(n.sleep_seconds)}${n.resting_hr ? ` · resting HR ${Math.round(n.resting_hr)}` : ''}`;
       return {
         value: Math.round(d.sleep_score),
         unit: '/ 100',
         badge: badge(d),
         sub: sub(d),
-        spark: { type: 'bars', points: series(days, 'sleep_score', 14), color: '#38bdf8' },
+        chart: { type: 'bars', points: series(days, 'sleep_score', 14) },
         foot: `${dayLabel(d.t)} · last 14 nights · tap a bar`,
         pick: (i) => {
           const n = nights[i];
@@ -121,49 +118,73 @@ const CARDS = [
         value: Math.round(cur.v),
         unit: 'bpm',
         sub: change(Math.round(cur.v), prev && Math.round(prev.v), 0, 'prior 7 days') ?? `${cur.n} run${cur.n > 1 ? 's' : ''}`,
-        spark: { type: 'line', points: hrRuns.map((r) => ({ t: r.t, v: r.hr })), color: '#f87171' },
+        chart: { type: 'columns', points: hrRuns.map((r) => ({ t: r.t, v: r.hr })) },
         foot: `Runs, last 7 days · ${cur.n} run${cur.n > 1 ? 's' : ''}`,
       };
     },
   },
 ];
 
+/** Dot chart for a card: tappable bars (with `onPick`) or a column chart. */
+function CardChart({ chart, selected, onPick }) {
+  const pts = chart.points;
+  const grid = useMemo(() => {
+    if (!pts || pts.length < 2) return null;
+    const vals = pts.map((p) => p.v);
+    return chart.type === 'bars'
+      ? bars(vals, 7, { w: vals.length > 10 ? 1 : 2, hi: selected ?? vals.length - 1 })
+      : columns(vals, 6);
+  }, [chart.type, pts, selected]);
+  if (!grid) return null;
+  const onColumn = onPick && grid.barAt ? (c) => grid.barAt(c) != null && onPick(grid.barAt(c)) : undefined;
+  return <DotGrid grid={grid} onColumn={onColumn} className="w-full lg:max-w-[260px]" />;
+}
+
+function Badge({ badge }) {
+  if (!badge) return null;
+  return (
+    <span
+      className={`rounded-full border px-2 py-0.5 text-[11px] tracking-[0.08em] uppercase ${
+        badge.alert ? 'border-accent text-accent' : 'border-line-strong text-white'
+      }`}
+    >
+      {badge.text}
+    </span>
+  );
+}
+
 function GlanceCard({ card, data }) {
   const [sel, setSel] = useState(null);
-  useEffect(() => setSel(null), [data?.spark?.points?.length]); // new data shape: drop a stale pick
+  useEffect(() => setSel(null), [data?.chart?.points?.length]); // new data shape: drop a stale pick
   const picked = data?.pick && sel != null ? data.pick(sel) : null;
   const value = picked?.value ?? data?.value;
   const sub = picked?.sub ?? data?.sub;
   const badge = picked && 'badge' in picked ? picked.badge : data?.badge;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-slate-700 bg-slate-900 p-4">
+    <div className="card flex h-full flex-col gap-3.5 p-5 lg:gap-5 lg:p-6">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{card.label}</span>
-        {badge && (
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
-            {badge.text}
-          </span>
-        )}
+        <span className="eyebrow">{card.label}</span>
+        <Badge badge={badge} />
       </div>
       {data ? (
         <>
-          <div className="mt-1 flex items-baseline gap-1">
-            <span className="text-3xl font-semibold text-white">{value}</span>
-            <span className="text-sm text-slate-400">{data.unit}</span>
+          <div className="flex items-baseline gap-2.5">
+            <span className="num text-[64px] leading-[0.9] lg:text-[88px]">{value}</span>
+            <span className="text-xs tracking-[0.12em] text-muted uppercase">{data.unit}</span>
           </div>
-          <div className={`text-xs ${picked ? 'text-emerald-300' : 'text-slate-400'}`}>{sub}</div>
-          <div className="mt-auto pt-3">
-            <Sparkline
-              {...data.spark}
+          <div className={`text-xs ${picked ? 'text-accent' : 'text-muted'}`}>{sub}</div>
+          <div className="mt-auto flex flex-col gap-2.5">
+            <CardChart
+              chart={data.chart}
               selected={sel}
-              onSelect={data.pick ? (i) => setSel((cur) => (cur === i ? null : i)) : undefined}
+              onPick={data.pick ? (i) => setSel((cur) => (cur === i ? null : i)) : undefined}
             />
-            <div className="mt-1 text-[11px] text-slate-500">{data.foot}</div>
+            <div className="text-xs text-muted">{data.foot}</div>
           </div>
         </>
       ) : (
-        <p className="mt-3 text-sm text-slate-500">{card.empty}</p>
+        <p className="m-0 text-sm text-muted">{card.empty}</p>
       )}
     </div>
   );
@@ -190,24 +211,25 @@ export default function GlanceSection({ activities, days }) {
 
   return (
     <div>
+      {/* phone: swipeable carousel; desktop: all cards in a row */}
       <div
         ref={scroller}
         onScroll={onScroll}
-        className="relative -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="no-scrollbar relative -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:px-0"
       >
         {built.map(({ card, data }) => (
-          <div key={card.id} className="w-[80%] shrink-0 snap-start">
+          <div key={card.id} className="w-[min(300px,80%)] shrink-0 snap-start lg:w-auto">
             <GlanceCard card={card} data={data} />
           </div>
         ))}
       </div>
-      <div className="mt-2 flex justify-center gap-1.5">
+      <div className="mt-3.5 flex justify-center gap-2 lg:hidden">
         {built.map(({ card }, i) => (
           <button
             key={card.id}
             aria-label={`Show ${card.label}`}
             onClick={() => goTo(i)}
-            className={`h-1.5 rounded-full transition-all ${i === active ? 'w-4 bg-slate-300' : 'w-1.5 bg-slate-700'}`}
+            className={`h-2 w-2 rounded-full ${i === active ? 'bg-accent' : 'bg-line-strong'}`}
           />
         ))}
       </div>

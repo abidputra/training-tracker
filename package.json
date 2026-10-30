@@ -12,7 +12,6 @@
     "@supabase/server": "^1.9.2",
     "@supabase/supabase-js": "^2.117.3",
     "react": "^19.3.0",
-    "react-body-highlighter": "^2.0.5",
     "react-dom": "^19.3.0"
   },
   "devDependencies": {

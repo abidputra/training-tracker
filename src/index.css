@@ -1,6 +1,32 @@
 @import "tailwindcss";
 
-/* Dark, phone-first base. Safe-area insets keep content clear of the notch / home bar when installed as a PWA. */
+/*
+ * Dot-matrix look: black ground, white type, one accent colour.
+ * Display numbers and titles use Doto; everything else Space Mono.
+ * The accent is a CSS variable so Settings can change it at runtime
+ * (see lib/accent.js); every highlight, button and red dot reads it.
+ */
+:root {
+  --accent: #ff3b30;
+  --bg: #000;
+  --line: #2e2e2e; /* card borders */
+  --line-strong: #444; /* pills, buttons */
+  --muted: #9a9a9a;
+  --dot-dim: #2a2a2a;
+  /* Top inset: the iPhone status bar plus a little breathing room, so the header
+     and sticky pills sit below the area iOS blurs/fades at the top of the screen. */
+  --top-inset: calc(env(safe-area-inset-top) + 0.75rem);
+}
+
+@theme inline {
+  --font-mono: 'Space Mono', ui-monospace, monospace;
+  --font-dot: 'Doto', 'DotGothic16', 'Space Mono', monospace;
+  --color-accent: var(--accent);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-muted: var(--muted);
+}
+
 html,
 body,
 #root {
@@ -9,22 +35,25 @@ body,
 
 /* Same colour on <html>: Safari uses it for the overscroll and status bar areas. */
 html {
-  background: #0f172a;
-}
-
-/* Top inset: the iPhone status bar plus a little breathing room, so the header
-   and sticky pills sit below the area iOS blurs/fades at the top of the screen. */
-:root {
-  --top-inset: calc(env(safe-area-inset-top) + 0.75rem);
+  background: var(--bg);
 }
 
 body {
-  background: #0f172a;
-  color: #e2e8f0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg);
+  background-image: radial-gradient(circle, #2a2a2a 1.1px, transparent 1.5px);
+  background-size: 16px 16px;
+  color: #fff;
+  font-family: var(--font-mono);
   -webkit-font-smoothing: antialiased;
   padding-top: var(--top-inset);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (min-width: 1024px) {
+  body {
+    background-image: radial-gradient(circle, #2a2a2a 1.2px, transparent 1.6px);
+    background-size: 18px 18px;
+  }
 }
 
 /* Solid strip behind the status bar (the <div class="top-cover"> in index.html)
@@ -35,7 +64,130 @@ body {
   position: fixed;
   inset: 0 0 auto 0;
   height: var(--top-inset);
-  background: #0f172a;
+  background: var(--bg);
   z-index: 35;
   pointer-events: none;
 }
+
+/* Design utilities (@utility, so responsive variants like lg:card work). */
+@utility card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+/* small uppercase label above a number */
+@utility eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* Doto section title */
+@utility title {
+  font-family: var(--font-dot);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+@utility num {
+  font-family: var(--font-dot);
+  font-weight: 900;
+  line-height: 1;
+}
+@utility rule {
+  border-bottom: 1px dotted #3a3a3a;
+}
+@utility pill {
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  padding: 11px 16px;
+  font-size: 13px;
+  color: #fff;
+  background: var(--bg);
+}
+/* the selected pill: use instead of `pill`, not together with it */
+@utility pill-on {
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  padding: 11px 16px;
+  font-size: 13px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 700;
+}
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  color: #fff;
+  font-size: 13px;
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--accent);
+  color: #000;
+  font-weight: 700;
+  font-size: 14px;
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+@utility field {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 16px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  color: #fff;
+  padding: 0 16px;
+  font-size: 16px; /* 16px keeps iOS from zooming in on focus */
+  outline: none;
+  &::placeholder {
+    color: #777;
+  }
+  &:focus {
+    border-color: var(--accent);
+  }
+}
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* One cell of a dot-matrix graphic (components/DotGrid.jsx). */
+.d {
+  aspect-ratio: 1;
+  --c: var(--dot-dim);
+  background: radial-gradient(circle closest-side, var(--c) 0, var(--c) 62%, transparent 68%);
+}
+.d-on { --c: #fff; }
+.d-acc { --c: var(--accent); }
+.d-base { --c: #333; }
+.d-sel { --c: #555; }
+/* intensity steps between white and the accent (muscle maps) */
+.d-l2 { --c: color-mix(in srgb, var(--accent) 35%, #fff); }
+.d-l3 { --c: color-mix(in srgb, var(--accent) 70%, #fff); }
+.d-none { background: none; }

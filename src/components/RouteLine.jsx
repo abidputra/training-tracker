@@ -1,55 +1,57 @@
 /**
- * The route as a plain line (no map): the track is projected to a flat drawing,
- * north up, scaled to fit with the right proportions. Green dot = start, red
- * ring = finish. Pure SVG, so nothing is downloaded and the route never leaves
- * the device.
+ * The route as a dot-matrix drawing (no map): the GPS track rasterised onto a
+ * dot grid, north up, proportions kept. Accent = track, white dot = start.
+ * Nothing is downloaded and the route never leaves the device.
  *
- * `points` is [[lat, lon, elevation], ...].
+ * `points` is [[lat, lon, elevation], ...]. "Download GPX" builds the file
+ * from these points in the browser.
  */
 import { useMemo } from 'react';
+import { route } from '../lib/dots.js';
+import DotGrid from './DotGrid.jsx';
+import { Icon } from './ui.jsx';
 
-const W = 384;
-const H = 224;
-const PAD = 24;
-
-/** Lat/lon -> drawing coordinates, or null when there is nothing to draw. */
-function project(points) {
-  const pts = points.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
-  if (pts.length < 2) return null;
-
-  // Longitude degrees shrink with latitude; without this the shape looks stretched.
-  const k = Math.cos((pts.reduce((a, p) => a + p[0], 0) / pts.length) * (Math.PI / 180));
-  const xy = pts.map((p) => [p[1] * k, -p[0]]); // minus: north is up
-
-  const xs = xy.map((p) => p[0]);
-  const ys = xy.map((p) => p[1]);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const dx = Math.max(Math.max(...xs) - minX, 1e-9);
-  const dy = Math.max(Math.max(...ys) - minY, 1e-9);
-
-  const scale = Math.min((W - 2 * PAD) / dx, (H - 2 * PAD) / dy);
-  const offX = (W - dx * scale) / 2;
-  const offY = (H - dy * scale) / 2;
-  return xy.map(([x, y]) => [offX + (x - minX) * scale, offY + (y - minY) * scale]);
+function toGpx(points, name, startIso) {
+  const esc = (s) => String(s).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
+  const pts = points
+    .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]))
+    .map((p) => `<trkpt lat="${p[0]}" lon="${p[1]}">${Number.isFinite(p[2]) ? `<ele>${p[2]}</ele>` : ''}</trkpt>`)
+    .join('');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Training Tracker" xmlns="http://www.topografix.com/GPX/1/1"><metadata><time>${esc(startIso)}</time></metadata><trk><name>${esc(name)}</name><trkseg>${pts}</trkseg></trk></gpx>`;
 }
 
-export default function RouteLine({ points }) {
-  const line = useMemo(() => project(points), [points]);
-  if (!line) return null;
+export default function RouteLine({ points, distance, name = 'Activity', start }) {
+  const grid = useMemo(() => route(points, 36), [points]);
+  if (!grid) return null;
 
-  const d = line.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-  const [sx, sy] = line[0];
-  const [ex, ey] = line[line.length - 1];
-  const stroke = { fill: 'none', strokeLinejoin: 'round', strokeLinecap: 'round', vectorEffect: 'non-scaling-stroke' };
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([toGpx(points, name, start)], { type: 'application/gpx+xml' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name.replace(/[^\w-]+/g, '_')}_${(start ?? '').slice(0, 10)}.gpx`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-56 w-full" role="img" aria-label="Route of this activity">
-      <polyline points={d} stroke="#0f172a" strokeWidth="8" opacity="0.8" {...stroke} />
-      <polyline points={d} stroke="#34d399" strokeWidth="3.5" {...stroke} />
-      {/* finish first, start on top, so a loop (start = finish) shows both */}
-      <circle cx={ex} cy={ey} r="7" fill="#ef4444" stroke="#f8fafc" strokeWidth="2" />
-      <circle cx={sx} cy={sy} r="4" fill="#22c55e" stroke="#f8fafc" strokeWidth="1.5" />
-    </svg>
+    <div className="flex flex-col gap-4">
+      <DotGrid grid={grid} className="w-full" label="Route of this activity" />
+      <div className="flex items-center justify-between gap-3 text-xs text-muted">
+        <span className="flex items-center gap-2">
+          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-white" />
+          Start
+        </span>
+        {distance && (
+          <span className="flex items-center gap-2">
+            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-accent" />
+            {distance}
+          </span>
+        )}
+      </div>
+      <button onClick={download} className="btn w-full">
+        <Icon name="download" /> Download GPX
+      </button>
+    </div>
   );
 }

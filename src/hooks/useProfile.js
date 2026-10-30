@@ -1,7 +1,7 @@
 /**
- * The signed-in user's profile row (username). Returns `profile` as undefined
- * while loading, then { username } (username is null for accounts created
- * before usernames existed).
+ * The signed-in user's profile row (username, accent). Returns `profile` as
+ * undefined while loading, then { username, accent } (null when not set).
+ * Selects `*` so the page still loads if the accent column is not migrated yet.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
@@ -13,11 +13,11 @@ export function useProfile(userId) {
     if (!userId) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('username')
+      .select('*')
       .eq('id', userId)
       .maybeSingle();
     if (error) throw error;
-    setProfile(data ?? { username: null });
+    setProfile({ username: null, accent: null, ...data });
   }, [userId]);
 
   useEffect(() => {

@@ -10,12 +10,13 @@ import DynamicsCard from './DynamicsCard.jsx';
 import PaceTableCard from './PaceTableCard.jsx';
 import PredictionCard from './PredictionCard.jsx';
 import TrendCard from './TrendCard.jsx';
+import { Empty, RangePills, SectionHead } from './ui.jsx';
 
 const signed = (d, fmt) => `${d > 0 ? '+' : d < 0 ? '−' : ''}${fmt(Math.abs(d))}`;
 
 /** Anchor targets for the header pills (scroll-mt clears the sticky nav). */
 const Anchor = ({ id, children, className = '' }) => (
-  <div id={id} className={`scroll-mt-[calc(var(--top-inset)+3.5rem)] ${className}`}>
+  <div id={id} className={`scroll-mt-[calc(var(--top-inset)+4rem)] ${className}`}>
     {children}
   </div>
 );
@@ -26,61 +27,56 @@ export default function Dashboard({ activities, days, loading, hasConnection }) 
   const shown = useMemo(() => filterRange(runs, range), [runs, range]);
   const fit = useMemo(() => fitness(runs), [runs]);
 
-  if (loading) return <p className="py-8 text-center text-sm text-slate-500">Loading…</p>;
+  if (loading) return <Empty>Loading…</Empty>;
   if (runs.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-slate-500">
+      <Empty>
         {hasConnection ? 'No runs yet. They appear here once synced.' : 'Connect Garmin in Settings to see your analysis.'}
-      </p>
+      </Empty>
     );
   }
+  const rangeName = RANGES.find((r) => r.key === range)?.name;
 
   return (
-    <div className="space-y-4">
-      <Anchor id="predictions"><PredictionCard fit={fit} /></Anchor>
-      <Anchor id="paces"><PaceTableCard fit={fit} /></Anchor>
+    <div className="flex flex-col gap-8 lg:gap-14">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-6">
+        <Anchor id="predictions"><PredictionCard fit={fit} /></Anchor>
+        <Anchor id="paces"><PaceTableCard fit={fit} /></Anchor>
+      </div>
 
-      <Anchor id="trends" className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-300">Trends · {runs.length} runs</h2>
-          <div className="flex gap-1 rounded-lg bg-slate-900 p-1">
-            {RANGES.map((r) => (
-              <button
-                key={r.key}
-                title={r.name}
-                onClick={() => setRange(r.key)}
-                className={`rounded-md px-2.5 py-1 text-xs ${
-                  range === r.key ? 'bg-slate-700 text-white' : 'text-slate-400'
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+      <Anchor id="trends" className="flex flex-col gap-3.5">
+        <SectionHead
+          n="04"
+          title="Trends"
+          note={
+            <>
+              {shown.length} runs<span className="hidden lg:inline"> · {rangeName}</span>
+            </>
+          }
+        />
+        <RangePills value={range} onChange={setRange} />
+        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2 lg:gap-6">
+          <TrendCard
+            title="Pace"
+            runs={shown}
+            allRuns={runs}
+            get={(r) => r.pace}
+            fmt={(v) => paceSec(v)}
+            fmtDelta={(d) => `${signed(d, paceSec)} /km`}
+            unit="/km"
+            higherIsUp={false}
+          />
+          <TrendCard
+            title="Heart rate"
+            runs={shown}
+            allRuns={runs}
+            get={(r) => r.hr}
+            fmt={(v) => String(Math.round(v))}
+            fmtDelta={(d) => `${signed(d, (x) => Math.round(x))} bpm`}
+            unit="bpm"
+            higherIsUp
+          />
         </div>
-
-        <TrendCard
-          title="Pace"
-          runs={shown}
-          allRuns={runs}
-          get={(r) => r.pace}
-          fmt={(v) => paceSec(v)}
-          fmtDelta={(d) => `${signed(d, paceSec)} /km`}
-          unit="/km"
-          higherIsUp={false}
-          color="#38bdf8"
-        />
-        <TrendCard
-          title="Heart rate"
-          runs={shown}
-          allRuns={runs}
-          get={(r) => r.hr}
-          fmt={(v) => String(Math.round(v))}
-          fmtDelta={(d) => `${signed(d, (x) => Math.round(x))} bpm`}
-          unit="bpm"
-          higherIsUp
-          color="#f87171"
-        />
       </Anchor>
 
       <Anchor id="dynamics"><DynamicsCard runs={runs} days={days} /></Anchor>
