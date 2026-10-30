@@ -174,10 +174,11 @@ export function WeeklyChart({ title, weeks, get, fmt, unit, note }) {
 
 export default function StrengthMetrics({ sessions, loading, error, onRetry, onExercise }) {
   const [range, setRange] = useState(DEFAULT_RANGE);
+  const [allRecsOpen, setAllRecsOpen] = useState(false); // Records: latest 5, or every exercise
   const glance = useMemo(() => strengthGlance(sessions), [sessions]);
   const history = useMemo(() => exerciseHistory(sessions), [sessions]);
   const allRecs = useMemo(() => records(history), [history]);
-  const recs = useMemo(() => allRecs.slice(0, 5), [allRecs]);
+  const recs = allRecsOpen ? allRecs : allRecs.slice(0, 5);
   const top = useMemo(() => [...allRecs].sort((a, b) => b.pr - a.pr)[0] ?? null, [allRecs]);
   const exercises = useMemo(() => recentExercises(history), [history]);
   const split = useMemo(() => muscleSplit(sessions), [sessions]);
@@ -266,6 +267,11 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
               </button>
             ))}
           </div>
+          {allRecs.length > 5 && (
+            <button onClick={() => setAllRecsOpen((o) => !o)} aria-expanded={allRecsOpen} className="btn self-start">
+              {allRecsOpen ? 'Show less' : 'View all'}
+            </button>
+          )}
         </Anchor>
       )}
 
