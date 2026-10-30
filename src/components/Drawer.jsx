@@ -1,7 +1,8 @@
 /**
- * Bottom-sheet drawer. Slides up with a fading backdrop and slides back down
- * before unmounting. Closes on backdrop tap, Esc, the ✕ button, or a swipe
- * down on the grab handle. Locks page scroll while open.
+ * Drawer. Phones: a bottom sheet that slides up (closes with a swipe down on
+ * the grab handle). Desktop (`lg`): a side panel that slides in from the right,
+ * full height. Both fade a backdrop, slide back out before unmounting, and close
+ * on backdrop click, Esc or the ✕ button. Locks page scroll while open.
  *
  * Motion: opening is a little slower and ends softly (strong ease-out), closing
  * is quicker and accelerates away, so the sheet never makes you wait. With
@@ -18,7 +19,24 @@ const EASE_CLOSE = 'cubic-bezier(0.4, 0, 1, 1)'; // accelerates out of view
 const reducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+const DESKTOP = '(min-width: 1024px)'; // Tailwind `lg`
+
+/** True from the `lg` breakpoint up; follows window resizes. */
+function useDesktop() {
+  const [on, setOn] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(DESKTOP).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(DESKTOP);
+    if (!mq) return undefined;
+    const update = () => setOn(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  return on;
+}
+
 export default function Drawer({ open, onClose, title, children }) {
+  const desktop = useDesktop();
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(false);
   const [drag, setDrag] = useState(0);
@@ -65,6 +83,7 @@ export default function Drawer({ open, onClose, title, children }) {
   const ease = shown ? EASE_OPEN : EASE_CLOSE;
 
   const onPointerDown = (e) => {
+    if (desktop) return; // the side panel has no swipe handle
     dragStart.current = e.clientY;
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -87,10 +106,12 @@ export default function Drawer({ open, onClose, title, children }) {
       />
       <div
         ref={panel}
-        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[88vh] max-w-md flex-col rounded-t-3xl border border-b-0 border-line-strong bg-black will-change-transform"
+        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[88vh] max-w-md flex-col rounded-t-3xl border border-b-0 border-line-strong bg-black will-change-transform lg:inset-x-auto lg:inset-y-0 lg:right-0 lg:mx-0 lg:max-h-none lg:w-[480px] lg:max-w-[90vw] lg:rounded-none lg:rounded-l-3xl lg:border-b lg:border-r-0"
         style={{
-          // reduced motion: fade in place instead of sliding
-          transform: reduce ? `translateY(${drag}px)` : shown ? `translateY(${drag}px)` : 'translateY(100%)',
+          // desktop: from the right; phone: from the bottom. Reduced motion: fade in place instead of sliding.
+          transform: desktop
+            ? reduce || shown ? 'none' : 'translateX(100%)'
+            : reduce ? `translateY(${drag}px)` : shown ? `translateY(${drag}px)` : 'translateY(100%)',
           opacity: reduce ? (shown ? 1 : 0) : 1,
           // no transition while a finger drags the sheet; it follows the finger 1:1
           transition: drag ? 'none' : `${reduce ? 'opacity' : 'transform'} ${ms}ms ${ease}`,
@@ -98,13 +119,13 @@ export default function Drawer({ open, onClose, title, children }) {
         }}
       >
         <div
-          className="cursor-grab touch-none px-5 pb-2 pt-3"
+          className="cursor-grab touch-none px-5 pb-2 pt-3 lg:cursor-auto lg:touch-auto lg:px-7 lg:pt-6"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
-          <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong" />
+          <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong lg:hidden" />
           <div className="flex items-center justify-between gap-3">
             <h3 className="title m-0">{title}</h3>
             <button
@@ -117,7 +138,7 @@ export default function Drawer({ open, onClose, title, children }) {
             </button>
           </div>
         </div>
-        <div className="overflow-y-auto overscroll-contain px-5 pb-6">{children}</div>
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-6 lg:flex-1 lg:px-7 lg:pb-8">{children}</div>
       </div>
     </div>
   );
