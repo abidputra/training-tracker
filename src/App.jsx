@@ -1,6 +1,7 @@
 /**
  * App shell (single page), three views:
- *   metrics  -> Running or Strength metrics (sport tabs), reached from the floating menu.
+ *   metrics  -> Running, Strength and (when the account has them) Cycling, Swimming,
+ *               Hiking metrics, chosen with the sport tabs; reached from the floating menu.
  *               Strength opens sub-pages in place: one exercise, or one workout.
  *   history  -> Activity History list, reached from the floating menu
  *   settings -> account settings + connections, reached from the profile icon
@@ -13,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import { applyAccent, cacheAccent, cachedAccent } from './lib/accent.js';
 import { STRAVA_ENABLED, garminApi } from './lib/api.js';
+import { DISTANCE_SPORTS, sportsPresent } from './lib/sports.js';
 import { strengthSessions } from './lib/strength.js';
 import { useSession } from './hooks/useSession.js';
 import { useActivities } from './hooks/useActivities.js';
@@ -34,18 +36,27 @@ import SectionNav from './components/SectionNav.jsx';
 import Settings from './components/Settings.jsx';
 import Snackbar from './components/Snackbar.jsx';
 import Spinner from './components/Spinner.jsx';
+import SportMetrics from './components/SportMetrics.jsx';
 import StrengthMetrics from './components/StrengthMetrics.jsx';
 import SyncButton, { LastSynced } from './components/SyncButton.jsx';
 import TopBar from './components/TopBar.jsx';
 import { Icon, SectionHead } from './components/ui.jsx';
 
-// Sport tabs on the metrics view. Adding a sport = one entry here plus its page.
+// Always-on sport tabs on the metrics view. Distance sports (lib/sports.js) are added
+// after these when the account has activities of that sport.
 const SPORTS = [
   { key: 'running', label: 'Running', icon: 'run' },
   { key: 'strength', label: 'Strength', icon: 'strength' },
 ];
 
 // Header pills per sport, in page order. Each id matches an element id on that page.
+const DISTANCE_SECTIONS = [
+  { id: 'glance', label: 'At a Glance' },
+  { id: 'records', label: 'Personal Bests' },
+  { id: 'trends', label: 'Trends' },
+  { id: 'recent', label: 'Recent' },
+];
+
 const SECTIONS = {
   running: [
     { id: 'glance', label: 'At a Glance' },
@@ -78,10 +89,15 @@ export default function App() {
   const { profile, reload: reloadProfile } = useProfile(userId);
   const [sport, setSport] = useState('running');
   const [sub, setSub] = useState(null); // strength sub-page: { exercise } | { activity, from }
-  const strength = view === 'metrics' && sport === 'strength';
   // Strength metrics are built from the full activity list (it carries the exercise summaries).
-  const history = useActivityHistory(userId, view === 'history' || strength);
+  // All activities are loaded up front: the Strength and sport tabs, and which of them exist, come from it.
+  const history = useActivityHistory(userId, true);
   const sessions = useMemo(() => strengthSessions(history.items), [history.items]);
+  const extraSports = useMemo(() => sportsPresent(history.items), [history.items]);
+  const sportList = useMemo(() => [...SPORTS, ...extraSports], [extraSports]);
+  // a tab that is gone (e.g. after disconnecting) falls back to Running
+  const sportKey = sportList.some((s) => s.key === sport) ? sport : 'running';
+  const sportDef = DISTANCE_SPORTS.find((d) => d.key === sportKey);
   const [notice, setNotice] = useState(null); // { type: 'info' | 'error', text }
   const [signingOut, setSigningOut] = useState(false);
   const clearNotice = useCallback(() => setNotice(null), []);
@@ -90,12 +106,12 @@ export default function App() {
   const refresh = useCallback(async () => {
     try {
       const jobs = [reloadActivities(), reload(), reloadDays()];
-      if (view === 'history' || strength) jobs.push(reloadHistory());
+      jobs.push(reloadHistory());
       await Promise.all(jobs);
     } catch (e) {
       setNotice({ type: 'error', text: `Refresh failed: ${e.message}` });
     }
-  }, [reloadActivities, reload, reloadDays, reloadHistory, view, strength]);
+  }, [reloadActivities, reload, reloadDays, reloadHistory]);
   const { pull, refreshing, ready } = usePullToRefresh(refresh);
   const { syncing, sync } = useSyncAll(connections, setNotice, refresh);
   // ISO timestamps sort as text, so the last one is the newest.
@@ -185,7 +201,7 @@ export default function App() {
   );
 
   // desktop only: the big title above the running dashboard
-  const hero = wide && sport === 'running' && (
+  const hero = wide && sportKey === 'running' && (
     <div className="mb-14 hidden lg:block">
       <div className="mb-3 flex items-center gap-2.5 text-xs tracking-[0.14em] text-muted uppercase">
         <span className="h-2.5 w-2.5 rounded-full bg-accent" />
@@ -211,12 +227,12 @@ export default function App() {
 
   const sportTabs = (
     <nav aria-label="Sport" className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:mb-8 lg:px-0">
-      {SPORTS.map((s) => (
+      {sportList.map((s) => (
         <button
           key={s.key}
           onClick={() => setSport(s.key)}
-          aria-current={sport === s.key ? 'page' : undefined}
-          className={`flex items-center gap-2 ${sport === s.key ? 'pill-on' : 'pill'}`}
+          aria-current={sportKey === s.key ? 'page' : undefined}
+          className={`flex items-center gap-2 ${sportKey === s.key ? 'pill-on' : 'pill'}`}
         >
           <Icon name={s.icon} />
           {s.label}
@@ -242,8 +258,8 @@ export default function App() {
       <>
         {sportTabs}
         {hero}
-        <SectionNav key={sport} sections={SECTIONS[sport]} />
-        {sport === 'running' ? (
+        <SectionNav key={sportKey} sections={SECTIONS[sportKey] ?? DISTANCE_SECTIONS} />
+        {sportKey === 'running' ? (
           <div className="flex flex-col gap-8 lg:gap-14">
             <section id="glance" className="scroll-mt-[calc(var(--top-inset)+4rem)]">
               <SectionHead n="01" title="At a Glance" />
@@ -256,13 +272,22 @@ export default function App() {
               hasConnection={Object.keys(connections).length > 0}
             />
           </div>
-        ) : (
+        ) : sportKey === 'strength' ? (
           <StrengthMetrics
             sessions={sessions}
             loading={history.loading}
             error={history.error}
             onRetry={reloadHistory}
             onExercise={(name) => setSub({ exercise: name })}
+          />
+        ) : (
+          <SportMetrics
+            def={sportDef}
+            items={history.items}
+            loading={history.loading}
+            error={history.error}
+            onRetry={reloadHistory}
+            onOpen={(a) => setSub({ activity: a, from: null })}
           />
         )}
       </>

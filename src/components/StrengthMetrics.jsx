@@ -137,7 +137,7 @@ function GlanceCards({ glance, top }) {
   );
 }
 
-function WeeklyChart({ title, weeks, get, fmt, unit, note }) {
+export function WeeklyChart({ title, weeks, get, fmt, unit, note }) {
   const vals = weeks.map(get);
   const grid = bars(vals, 10, { w: weeks.length > 16 ? 1 : 2, minSlots: 12 }); // few weeks: pad, never giant dots
   const latest = vals[vals.length - 1];
