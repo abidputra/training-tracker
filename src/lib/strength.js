@@ -139,7 +139,7 @@ export function recentExercises(history, now = Date.now()) {
       repsPerSet: sets ? Math.round(reps / sets) : null,
       perRep: reps && volume ? volume / reps : null,
       volume,
-      trend: list.map((h) => h.maxWeight).filter(Boolean).slice(-8),
+      maxWeight: Math.max(0, ...month.map((h) => h.maxWeight)) || null, // heaviest in the window, null for bodyweight
     });
   }
   return out.sort((a, b) => b.volume - a.volume || b.sets - a.sets);
