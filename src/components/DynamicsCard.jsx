@@ -8,10 +8,8 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { DEFAULT_RANGE, RANGES, filterRange, rolling, windowAvg } from '../lib/analysis.js';
-import { columns } from '../lib/dots.js';
 import { dayLabel } from '../lib/glance.js';
 import Drawer from './Drawer.jsx';
-import DotGrid from './DotGrid.jsx';
 import LineChart from './LineChart.jsx';
 import { Note, RangePills, SectionHead } from './ui.jsx';
 
@@ -175,10 +173,9 @@ export default function DynamicsCard({ runs, days = [] }) {
   const rows = METRICS.map((m) => {
     const cur = windowAvg(runs, (r) => r[m.key], anchor, 30);
     const prev = windowAvg(runs, (r) => r[m.key], anchor, 30, 30);
-    const recent = runs.map((r) => r[m.key]).filter((v) => v != null).slice(-12);
-    return { ...m, cur, recent, delta: cur != null && prev != null ? cur - prev : null };
+    return { ...m, cur, delta: cur != null && prev != null ? cur - prev : null };
   }).filter((m) => m.cur != null);
-  if (weight) rows.push({ ...WEIGHT, cur: weight.cur, delta: weight.delta, recent: weight.pts.slice(-12).map((p) => p.weight) });
+  if (weight) rows.push({ ...WEIGHT, cur: weight.cur, delta: weight.delta });
 
   const open = [...METRICS, WEIGHT].find((m) => m.key === openKey);
   const lastOpen = useRef(null); // keeps the content rendered while the drawer slides out
@@ -231,11 +228,6 @@ export default function DynamicsCard({ runs, days = [] }) {
                     <Delta delta={m.delta} digits={m.digits} better={m.better} />
                   )}
                 </div>
-                {m.recent.length > 1 && (
-                  <div className="hidden w-full max-w-[156px] lg:block">
-                    <DotGrid grid={columns(m.recent, 6)} />
-                  </div>
-                )}
               </button>
             ))}
           </div>
