@@ -1,7 +1,6 @@
 /**
  * One exercise across sessions: record, weight per rep, 30-day volume, the
- * heaviest weight and volume per session, and the recent sessions (tap one to
- * open that workout). Built from Garmin's per-exercise summaries.
+ * heaviest weight and volume per session. Built from Garmin's per-exercise summaries.
  */
 import { useMemo, useState } from 'react';
 import { DEFAULT_RANGE, filterRange } from '../lib/analysis.js';
@@ -17,7 +16,7 @@ const sum = (list, f) => list.reduce((a, x) => a + f(x), 0);
 function SessionChart({ title, list, get, headline, sub }) {
   const vals = list.map(get);
   if (vals.length === 0 || !Math.max(...vals)) return null;
-  const grid = bars(vals, 10, { w: vals.length > 16 ? 1 : 2 });
+  const grid = bars(vals, 10, { w: vals.length > 16 ? 1 : 2, minSlots: 8 });
   return (
     <div className="card flex flex-col gap-3.5 p-5">
       <div className="flex items-start justify-between gap-2">
@@ -38,7 +37,7 @@ function SessionChart({ title, list, get, headline, sub }) {
   );
 }
 
-export default function ExerciseDetail({ name, sessions, onBack, onOpenActivity }) {
+export default function ExerciseDetail({ name, sessions, onBack }) {
   const [range, setRange] = useState(DEFAULT_RANGE);
   const list = useMemo(() => exerciseHistory(sessions).get(name) ?? [], [sessions, name]);
   const shown = useMemo(() => filterRange(list, range), [list, range]);
@@ -95,34 +94,6 @@ export default function ExerciseDetail({ name, sessions, onBack, onOpenActivity 
           sub="Latest session"
         />
         {shown.length === 0 && <Note>No sessions in this range.</Note>}
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="eyebrow m-0 font-normal">Recent Sessions</h2>
-        <div className="card px-5 py-1">
-          {[...list]
-            .reverse()
-            .slice(0, 8)
-            .map((h, i, arr) => (
-              <button
-                key={h.session.id}
-                onClick={() => onOpenActivity(h.session.activity)}
-                className={`flex min-h-16 w-full items-center justify-between gap-3 py-3 text-left ${i < arr.length - 1 ? 'rule' : ''}`}
-              >
-                <div className="flex flex-col gap-1">
-                  <span className="text-sm">{shortDate(h.t)}</span>
-                  <span className="text-xs text-muted">
-                    {h.sets} set{h.sets === 1 ? '' : 's'}
-                    {h.reps ? ` · ${h.reps} reps` : ''}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 text-right">
-                  <span className="text-sm font-bold">{h.maxWeight ? `top ${kgNum(h.maxWeight)} kg` : 'bodyweight'}</span>
-                  {h.volume > 0 && <span className="text-xs text-muted">{kgNum(h.volume)} kg</span>}
-                </div>
-              </button>
-            ))}
-        </div>
       </section>
     </div>
   );

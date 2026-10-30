@@ -17,7 +17,12 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
  * The `hi` bar (default: the last) is drawn in the accent.
  * `barAt(col)` maps a column back to its bar index (null on a gap).
  */
-export function bars(vals, rows, { w = 2, hi = vals.length - 1 } = {}) {
+export function bars(input, rows, { w = 2, hi: hiIn, minSlots = 0 } = {}) {
+  // Few values would stretch into a few huge dots: pad empty slots on the left so
+  // the chart keeps its usual size, with the newest value at the right.
+  const pad = Math.max(0, minSlots - input.length);
+  const vals = [...Array(pad).fill(0), ...input];
+  const hi = hiIn == null ? vals.length - 1 : hiIn + pad;
   const cols = Math.max(0, vals.length * (w + 1) - 1);
   const max = Math.max(0, ...vals);
   const hs = vals.map((v) => (max > 0 && v > 0 ? clamp(Math.ceil((v / max) * rows), 1, rows) : 0));

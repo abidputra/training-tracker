@@ -22,7 +22,6 @@ import { useDailyMetrics } from './hooks/useDailyMetrics.js';
 import { useProfile } from './hooks/useProfile.js';
 import { useSyncAll } from './hooks/useSyncAll.js';
 import { usePullToRefresh } from './hooks/usePullToRefresh.js';
-import ActivityDetail from './components/ActivityDetail.jsx';
 import ActivityHistory from './components/ActivityHistory.jsx';
 import AuthForm from './components/AuthForm.jsx';
 import Dashboard from './components/Dashboard.jsx';
@@ -76,7 +75,7 @@ export default function App() {
   const { days, reload: reloadDays } = useDailyMetrics(userId);
   const { profile, reload: reloadProfile } = useProfile(userId);
   const [sport, setSport] = useState('running');
-  const [sub, setSub] = useState(null); // strength sub-page: { exercise } | { activity, from }
+  const [sub, setSub] = useState(null); // strength sub-page: { exercise }
   const strength = view === 'metrics' && sport === 'strength';
   // Strength metrics are built from the full activity list (it carries the exercise summaries).
   const history = useActivityHistory(userId, view === 'history' || strength);
@@ -235,11 +234,8 @@ export default function App() {
         name={sub.exercise}
         sessions={sessions}
         onBack={() => setSub(null)}
-        onOpenActivity={(a) => setSub({ activity: a, from: sub })}
       />
     );
-  } else if (sub?.activity) {
-    metrics = <ActivityDetail activity={sub.activity} onBack={() => setSub(sub.from ?? null)} />;
   } else {
     metrics = (
       <>
