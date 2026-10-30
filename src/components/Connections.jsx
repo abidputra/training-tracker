@@ -32,7 +32,7 @@ const Busy = ({ loading, children }) => (
 
 export default function Connections({ connections, onNotice, onChanged }) {
   const [showGarmin, setShowGarmin] = useState(false);
-  const [busy, setBusy] = useState(null); // 'garmin-sync' | 'garmin-all' | 'garmin-off' | 'strava-all' | 'strava-off'
+  const [busy, setBusy] = useState(null); // 'garmin-all' | 'garmin-off' | 'strava-all' | 'strava-off'
   const strava = connections.strava;
   const garmin = connections.garmin;
   const garminNeedsLogin = !garmin || garmin.status === 'needs_reauth';
@@ -111,13 +111,6 @@ export default function Connections({ connections, onNotice, onChanged }) {
               )
             ) : (
               <>
-                <button
-                  disabled={!!busy}
-                  className={btn}
-                  onClick={() => run('garmin-sync', () => garminApi('/garmin/sync'))}
-                >
-                  <Busy loading={busy === 'garmin-sync'}>{busy === 'garmin-sync' ? 'Syncing…' : 'Sync now'}</Busy>
-                </button>
                 <button
                   disabled={!!busy}
                   className={btn}

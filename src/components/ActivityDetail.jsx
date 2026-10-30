@@ -3,11 +3,17 @@
  * list. The map (GPX) is left out on purpose. The full provider payload is
  * loaded here (`raw`), since the history list does not fetch it.
  */
-import { useEffect, useMemo, useState } from 'react';
-import { activityKind, exerciseRows, headlineStats, summaryRows } from '../lib/activityStats.js';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { activityKind, exerciseRows, exercisesOf, headlineStats, routeExpected, summaryRows } from '../lib/activityStats.js';
+import { muscleLoad } from '../lib/muscles.js';
+import { useRoute } from '../hooks/useRoute.js';
 import { sportInfo } from '../lib/format.js';
 import { supabase } from '../lib/supabase.js';
+import RouteLine from './RouteLine.jsx';
 import Spinner from './Spinner.jsx';
+
+// The body figures are large: only download them when a workout has muscles to show.
+const MuscleMap = lazy(() => import('./MuscleMap.jsx'));
 
 export default function ActivityDetail({ activity, onBack }) {
   const [raw, setRaw] = useState(undefined); // undefined = still loading
@@ -43,7 +49,11 @@ export default function ActivityDetail({ activity, onBack }) {
   });
   const rows = useMemo(() => summaryRows(activity, raw), [activity, raw]);
   const exercises = useMemo(() => exerciseRows(activity, raw), [activity, raw]);
+  const muscles = useMemo(() => muscleLoad(exercisesOf(activity, raw)), [activity, raw]);
+  const hasMuscles = Object.keys(muscles.scores).length > 0;
   const isDistance = activityKind(activity) === 'distance';
+  const wantsRoute = routeExpected(activity);
+  const route = useRoute(activity.id, wantsRoute);
 
   return (
     <div className="space-y-4">
@@ -71,6 +81,50 @@ export default function ActivityDetail({ activity, onBack }) {
           </div>
         ))}
       </section>
+
+      {wantsRoute && route.status !== 'none' && (
+        <section className="rounded-2xl bg-slate-900 p-4">
+          <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">Route</h2>
+          {route.status === 'loading' && (
+            <p className="flex items-center gap-2 py-2 text-sm text-slate-500">
+              <Spinner /> Loading route…
+            </p>
+          )}
+          {route.status === 'error' && (
+            <div className="flex items-center justify-between gap-3 py-1 text-sm">
+              <span className="text-red-400">Could not load the route: {route.error}</span>
+              <button
+                onClick={route.retry}
+                className="shrink-0 rounded-lg bg-slate-800 px-3 py-1.5 text-slate-200 ring-1 ring-slate-700"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+          {route.status === 'ready' && <RouteLine points={route.points} />}
+        </section>
+      )}
+
+      {hasMuscles && (
+        <section className="rounded-2xl bg-slate-900 p-4">
+          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-slate-400">Muscles worked</h2>
+          <Suspense
+            fallback={
+              <p className="flex items-center gap-2 py-2 text-sm text-slate-500">
+                <Spinner /> Loading…
+              </p>
+            }
+          >
+            <MuscleMap scores={muscles.scores} />
+          </Suspense>
+          {muscles.unmatchedSets > 0 && (
+            <p className="mt-3 text-xs text-slate-500">
+              {muscles.unmatchedSets} of {muscles.matchedSets + muscles.unmatchedSets} sets are not included: Garmin
+              could not identify those exercises.
+            </p>
+          )}
+        </section>
+      )}
 
       {exercises.length > 0 && (
         <section className="rounded-2xl bg-slate-900 p-4">

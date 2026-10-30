@@ -17,6 +17,7 @@ import { useActivityHistory } from './hooks/useActivityHistory.js';
 import { useConnections } from './hooks/useConnections.js';
 import { useDailyMetrics } from './hooks/useDailyMetrics.js';
 import { useProfile } from './hooks/useProfile.js';
+import { useSyncAll } from './hooks/useSyncAll.js';
 import { usePullToRefresh } from './hooks/usePullToRefresh.js';
 import ActivityHistory from './components/ActivityHistory.jsx';
 import AuthForm from './components/AuthForm.jsx';
@@ -28,6 +29,7 @@ import SectionNav from './components/SectionNav.jsx';
 import Settings from './components/Settings.jsx';
 import Snackbar from './components/Snackbar.jsx';
 import Spinner from './components/Spinner.jsx';
+import SyncButton, { LastSynced } from './components/SyncButton.jsx';
 
 // Header pills, in page order. Each id matches an element id on the metrics page.
 const SECTIONS = [
@@ -67,6 +69,9 @@ export default function App() {
     }
   }, [reloadActivities, reload, reloadDays, reloadHistory, view]);
   const { pull, refreshing, ready } = usePullToRefresh(refresh);
+  const { syncing, sync } = useSyncAll(connections, setNotice, refresh);
+  // ISO timestamps sort as text, so the last one is the newest.
+  const lastSynced = Object.values(connections).map((c) => c.last_synced_at).filter(Boolean).sort().pop();
   const stravaHandled = useRef(false); // StrictMode runs effects twice in dev
 
   const signOut = async () => {
@@ -146,15 +151,21 @@ export default function App() {
         />
       ) : (
         <>
-          <header className="mb-2 flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-white">{TITLES[view]}</h1>
-            <ProfileMenu
-              username={profile?.username}
-              email={session.user.email}
-              signingOut={signingOut}
-              onSettings={() => setView('settings')}
-              onSignOut={signOut}
-            />
+          <header className="mb-2 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold text-white">{TITLES[view]}</h1>
+              <LastSynced iso={lastSynced} />
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <SyncButton syncing={syncing} onClick={sync} />
+              <ProfileMenu
+                username={profile?.username}
+                email={session.user.email}
+                signingOut={signingOut}
+                onSettings={() => setView('settings')}
+                onSignOut={signOut}
+              />
+            </div>
           </header>
 
           {view === 'metrics' && (

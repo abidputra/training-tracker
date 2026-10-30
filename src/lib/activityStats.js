@@ -41,6 +41,15 @@ export function activityKind(activity) {
   return 'general';
 }
 
+/** Outdoor Garmin activity with a distance: worth asking Garmin for a GPS route. */
+export function routeExpected(activity) {
+  return (
+    activity.provider === 'garmin' &&
+    activityKind(activity) === 'distance' &&
+    !/treadmill|indoor|virtual/i.test(activity.sport_type ?? '')
+  );
+}
+
 function setTotals(activity, raw) {
   const ex = exercisesOf(activity, raw);
   const sum = (key) => ex.reduce((a, e) => a + (num(e[key]) ?? 0), 0);
