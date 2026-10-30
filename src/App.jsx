@@ -192,9 +192,7 @@ export default function App() {
         <span>Live{lastSynced ? ' · all sources synced' : ''}</span>
       </div>
       <h1 className="m-0 font-dot text-[clamp(44px,8vw,112px)] leading-[0.92] font-black tracking-[0.02em] uppercase">
-        All-in-One
-        <br />
-        Training Tracker
+        Training Metrics
       </h1>
     </div>
   );

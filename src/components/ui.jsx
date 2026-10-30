@@ -3,14 +3,14 @@ import { RANGES } from '../lib/analysis.js';
 
 const PATHS = {
   sync: 'M20 11a8 8 0 0 0-14.5-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5L20 16M20 20v-4h-4',
-  back: 'M15 5l-7 7 7 7',
+  back: 'M15.5 5l-7 7 7 7', // x 8.5-15.5: centred on the 24 box
   metrics: 'M5 20V10M12 20V4M19 20v-7',
   history: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
   download: 'M12 4v11M7 11l5 5 5-5M5 20h14',
   run: 'M13 4.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0M8 21l3-6 3 2 2-5-3-2-3 2-2 4M12 9l4 2',
   strength: 'M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12',
   close: 'M6 6l12 12M18 6L6 18',
-  chevron: 'M9 5l7 7-7 7',
+  chevron: 'M8.5 5l7 7-7 7',
 };
 
 export function Icon({ name, size = 18, className = '' }) {

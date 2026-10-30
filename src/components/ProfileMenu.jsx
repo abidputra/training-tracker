@@ -32,7 +32,7 @@ export default function ProfileMenu({ username, email, signingOut, onSettings, o
         onClick={() => setOpen((o) => !o)}
         aria-label="Profile menu"
         aria-expanded={open}
-        className="num flex h-11 w-11 items-center justify-center rounded-full bg-accent pt-0.5 text-[22px] text-black active:opacity-80"
+        className="num flex h-11 w-11 items-center justify-center rounded-full bg-accent pt-[1px] pl-[1.5px] text-[22px] text-black active:opacity-80"
       >
         {initial}
       </button>

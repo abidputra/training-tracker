@@ -20,7 +20,7 @@ import {
   strengthGlance,
   weekly,
 } from '../lib/strength.js';
-import DotGrid from './DotGrid.jsx';
+import DotGrid, { leaveBar, pickBar } from './DotGrid.jsx';
 import { Empty, Icon, Note, RangePills, SectionHead } from './ui.jsx';
 
 const Anchor = ({ id, children }) => (
@@ -103,10 +103,8 @@ function GlanceCards({ glance, top }) {
             </div>
             <DotGrid
               grid={grid}
-              onColumn={(c) => {
-                const b = grid.barAt(c);
-                if (b != null) setSel((cur) => (cur === b ? null : b));
-              }}
+              onColumn={(c, how) => pickBar(setSel, grid.barAt(c), how)}
+              onLeave={leaveBar(setSel)}
             />
             <div className="text-xs text-muted">Mon–Sun, last 8 weeks · tap a bar</div>
           </div>

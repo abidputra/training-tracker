@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getRuns } from '../lib/analysis.js';
 import { dayLabel, hoursMinutes, latest, recentHr, series, weeklyDistance } from '../lib/glance.js';
 import { bars, columns } from '../lib/dots.js';
-import DotGrid from './DotGrid.jsx';
+import DotGrid, { leaveBar, pickBar } from './DotGrid.jsx';
 
 // Statuses worth flagging get the accent; the rest stay white.
 const HRV_TONE = {
@@ -126,7 +126,7 @@ const CARDS = [
 ];
 
 /** Dot chart for a card: tappable bars (with `onPick`) or a column chart. */
-function CardChart({ chart, selected, onPick }) {
+function CardChart({ chart, selected, setSel, pickable }) {
   const pts = chart.points;
   const grid = useMemo(() => {
     if (!pts || pts.length < 2) return null;
@@ -136,8 +136,8 @@ function CardChart({ chart, selected, onPick }) {
       : columns(vals, 6);
   }, [chart.type, pts, selected]);
   if (!grid) return null;
-  const onColumn = onPick && grid.barAt ? (c) => grid.barAt(c) != null && onPick(grid.barAt(c)) : undefined;
-  return <DotGrid grid={grid} onColumn={onColumn} className="w-full lg:max-w-[260px]" />;
+  const onColumn = pickable && grid.barAt ? (c, how) => pickBar(setSel, grid.barAt(c), how) : undefined;
+  return <DotGrid grid={grid} onColumn={onColumn} onLeave={onColumn && leaveBar(setSel)} className="w-full lg:max-w-[260px]" />;
 }
 
 function Badge({ badge }) {
@@ -178,7 +178,8 @@ function GlanceCard({ card, data }) {
             <CardChart
               chart={data.chart}
               selected={sel}
-              onPick={data.pick ? (i) => setSel((cur) => (cur === i ? null : i)) : undefined}
+              setSel={setSel}
+              pickable={!!data.pick}
             />
             <div className="text-xs text-muted">{data.foot}</div>
           </div>
