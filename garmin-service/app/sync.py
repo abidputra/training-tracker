@@ -15,6 +15,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta, timezone
 
+from cryptography.fernet import InvalidToken
 from garminconnect import (
     Garmin,
     GarminConnectAuthenticationError,
@@ -22,7 +23,7 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 
-from . import crypto, db
+from . import crypto, db, gpx
 
 log = logging.getLogger("garmin.sync")
 
@@ -215,6 +216,56 @@ def _set_status(connection_id: str, status: str, error: str | None, synced: bool
 def is_busy(connection_id: str) -> bool:
     with _active_lock:
         return connection_id in _active
+
+
+def mark_needs_reauth(connection_id: str) -> None:
+    """The stored Garmin session was rejected: ask the user to log in again."""
+    _set_status(connection_id, "needs_reauth", "Garmin session expired. Please log in to Garmin again.")
+
+
+class RouteBusy(Exception):
+    """A sync is running on this connection, so the token blob must not be touched now."""
+
+
+class TokenKeyMismatch(Exception):
+    """The stored session was encrypted with a different TOKEN_ENCRYPTION_KEY than this server has."""
+
+
+# Route downloads go one at a time (be gentle with Garmin).
+_route_lock = threading.Lock()
+
+
+def fetch_route(conn: dict, external_id: str) -> list[list]:
+    """
+    Downloads ONE activity's GPX from Garmin and returns the thinned track
+    ([] when the activity has no GPS). Uses the stored session and keeps the
+    refreshed tokens, exactly like a sync, and never overlaps one (RouteBusy).
+    Raises the library's Garmin* errors for the caller to map to HTTP.
+    """
+    cid = conn["id"]
+    with _route_lock:
+        with _active_lock:
+            if cid in _active:
+                raise RouteBusy()
+            _active.add(cid)
+        try:
+            stored = db.select("provider_tokens", {"connection_id": f"eq.{cid}", "select": "token_blob"})
+            if not stored or not stored[0].get("token_blob"):
+                raise GarminConnectAuthenticationError("No stored Garmin session")
+            try:
+                token_json = crypto.decrypt(stored[0]["token_blob"])
+            except InvalidToken as e:
+                # Not the user's fault, and not a dead session: leave the connection as it is.
+                raise TokenKeyMismatch() from e
+            g = _login_from_tokens(token_json)
+            data = g.download_activity(external_id, Garmin.ActivityDownloadFormat.GPX)
+            fresh = g.client.dumps()
+            if fresh != token_json:
+                db.patch("provider_tokens", {"connection_id": f"eq.{cid}"}, {"token_blob": crypto.encrypt(fresh)})
+            return gpx.parse_track(data)
+        finally:
+            with _active_lock:
+                _active.discard(cid)
 
 
 def sync_connection(conn: dict, limit: int = 20, everything: bool = False, wellness_days: int | None = None) -> dict:

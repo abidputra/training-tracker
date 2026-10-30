@@ -10,6 +10,7 @@ Endpoints
   POST   /garmin/mfa           user JWT   {code}            -> connected
   POST   /garmin/sync          user JWT   manual "sync now" (60s cooldown)
   POST   /garmin/backfill      user JWT   import full history in the background (202)
+  GET    /garmin/activities/{id}/route   user JWT   GPS track of one run (downloaded once, then cached)
   POST   /strava/connect       user JWT   {code, scope} -> OAuth finish + history import
   POST   /strava/sync          user JWT   manual sync (60s cooldown)
   POST   /strava/backfill      user JWT   import full history in the background (202)
@@ -34,6 +35,7 @@ from fastapi.responses import JSONResponse
 from garminconnect import (
     Garmin,
     GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
     GarminConnectTooManyRequestsError,
 )
 from pydantic import BaseModel
@@ -229,6 +231,72 @@ def backfill(background: BackgroundTasks, user_id: str = Depends(db.current_user
         raise HTTPException(409, "A sync is already running. Try again in a minute.")
     background.add_task(sync.sync_connection, conn, 20, True)
     return {"status": "started"}
+
+
+_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+
+
+@app.get("/garmin/activities/{activity_id}/route")
+def activity_route(activity_id: str, user_id: str = Depends(db.current_user_id)) -> dict:
+    """
+    GPS track of one of the caller's Garmin activities: {"points": [[lat, lon, ele], ...]}.
+    The first request downloads the GPX from Garmin and caches the thinned track in
+    `activity_routes`; later requests are answered from the cache. [] = no GPS track.
+    """
+    if not _UUID.fullmatch(activity_id):
+        raise HTTPException(404, "Activity not found.")
+    acts = db.select(
+        "activities",
+        {"id": f"eq.{activity_id}", "user_id": f"eq.{user_id}", "select": "id,provider,external_id"},
+    )
+    if not acts:
+        raise HTTPException(404, "Activity not found.")
+    act = acts[0]
+    if act["provider"] != "garmin":
+        raise HTTPException(404, "Routes are only available for Garmin activities.")
+
+    cached = db.select("activity_routes", {"activity_id": f"eq.{activity_id}", "select": "points"})
+    if cached:
+        return {"points": cached[0]["points"]}
+
+    conns = db.select(
+        "connections",
+        {"user_id": f"eq.{user_id}", "provider": "eq.garmin", "select": "id,user_id,status"},
+    )
+    if not conns:
+        raise HTTPException(404, "Garmin is not connected.")
+    conn = conns[0]
+    if conn["status"] == "needs_reauth":
+        raise HTTPException(409, "Garmin session expired. Please log in again.")
+
+    try:
+        points = sync.fetch_route(conn, act["external_id"])
+    except sync.RouteBusy:
+        raise HTTPException(409, "A sync is running. Try again in a minute.")
+    except sync.TokenKeyMismatch:
+        raise HTTPException(
+            503,
+            "This server cannot decrypt the saved Garmin session: its TOKEN_ENCRYPTION_KEY "
+            "differs from the one that saved it.",
+        )
+    except GarminConnectAuthenticationError:
+        sync.mark_needs_reauth(conn["id"])
+        raise HTTPException(409, "Garmin session expired. Please log in again.")
+    except GarminConnectTooManyRequestsError:
+        raise HTTPException(429, "Garmin is rate limiting requests. Try again in a few minutes.")
+    except GarminConnectConnectionError as e:
+        if "404" not in str(e):
+            raise HTTPException(502, "Could not reach Garmin. Try again later.")
+        points = []  # Garmin has no file for this activity (no GPS)
+    except ValueError:
+        raise HTTPException(502, "Garmin returned a route we could not read.")
+
+    db.upsert(
+        "activity_routes",
+        {"activity_id": activity_id, "user_id": user_id, "points": points},
+        on_conflict="activity_id",
+    )
+    return {"points": points}
 
 
 @app.delete("/garmin/disconnect")

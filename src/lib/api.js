@@ -8,6 +8,16 @@ import { supabase } from './supabase.js';
 // Strava is built but switched off. Set VITE_ENABLE_STRAVA=true to show it again.
 export const STRAVA_ENABLED = import.meta.env.VITE_ENABLE_STRAVA === 'true';
 
+/**
+ * First-party connections the header "Sync" button covers, one entry each. To
+ * include a new connection later, add it here (its endpoint must answer like
+ * /garmin/sync: { status, imported, error }).
+ */
+export const SYNC_PROVIDERS = [
+  { key: 'garmin', label: 'Garmin', path: '/garmin/sync' },
+  ...(STRAVA_ENABLED ? [{ key: 'strava', label: 'Strava', path: '/strava/sync' }] : []),
+];
+
 // Where the backend lives. UNSET falls back to the local service, so a deploy
 // that forgot the variable still reaches the laptop instead of 404-ing on its
 // own host. Set it to an https URL once the backend is hosted; an explicit
