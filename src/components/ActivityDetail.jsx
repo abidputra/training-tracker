@@ -7,6 +7,8 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { activityKind, exerciseRows, exercisesOf, headlineStats, routeExpected, splitsExpected, summaryRows } from '../lib/activityStats.js';
 import { muscleLoad } from '../lib/muscles.js';
+import { lapLabels } from '../lib/paceBar.js';
+import { genericAssets, runAssets, strengthAssets } from '../lib/shareArt.js';
 import { meter } from '../lib/dots.js';
 import { useRoute } from '../hooks/useRoute.js';
 import { useSplits } from '../hooks/useSplits.js';
@@ -14,9 +16,10 @@ import { sportInfo } from '../lib/format.js';
 import { supabase } from '../lib/supabase.js';
 import RouteLine from './RouteLine.jsx';
 import DotGrid from './DotGrid.jsx';
+import ShareDialog from './ShareDialog.jsx';
 import { KmSplits, Laps } from './Splits.jsx';
 import Spinner from './Spinner.jsx';
-import { DetailHeader, StatStrip, splitUnit } from './ui.jsx';
+import { DetailHeader, ShareButton, StatStrip, splitUnit } from './ui.jsx';
 
 // The body figures are large: only download them when a workout has muscles to show.
 const MuscleMap = lazy(() => import('./MuscleMap.jsx'));
@@ -24,6 +27,7 @@ const MuscleMap = lazy(() => import('./MuscleMap.jsx'));
 export default function ActivityDetail({ activity, onBack }) {
   const [raw, setRaw] = useState(undefined); // undefined = still loading
   const [error, setError] = useState(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +67,7 @@ export default function ActivityDetail({ activity, onBack }) {
   const wantsSplits = splitsExpected(activity);
   const splits = useSplits(activity.id, wantsSplits);
 
-  const headline = headlineStats(activity);
+  const headline = useMemo(() => headlineStats(activity), [activity]);
   // the "main" number in the accent: distance for a run, volume for a workout
   const accentLabel = isDistance ? 'Distance' : 'Volume';
   const stats = headline.map(([label, value]) => {
@@ -75,6 +79,56 @@ export default function ActivityDetail({ activity, onBack }) {
     stats.push({ label: 'AVG HEART RATE', value: String(Math.round(activity.avg_hr)), unit: 'bpm', desktopOnly: true });
   }
   const topVolume = Math.max(0, ...exercises.map((e) => e.volumeG ?? 0));
+
+  // The pieces the Share dialog offers. They follow what has loaded: the map needs the route,
+  // the tables need the splits.
+  const kind = activityKind(activity);
+  const assets = useMemo(() => {
+    const date = new Date(activity.start_time).toLocaleDateString(undefined, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    const get = (label) => headline.find(([l]) => l === label)?.[1];
+    const num = (text) => splitUnit(text ?? '–');
+    if (kind === 'distance') {
+      const [distance, time, pace] = headline;
+      const ready = splits.status === 'ready';
+      return runAssets({
+        title,
+        date,
+        routePoints: route.status === 'ready' ? route.points : null,
+        splits: ready ? splits.splits : [],
+        laps: ready ? splits.laps.map((l) => ({ ...l, name: lapLabels(l).name })) : [],
+        stats: {
+          distance: num(distance[1]),
+          time: { value: time[1], unit: 'min' },
+          pace: num(pace[1]),
+          paceLabel: pace[0],
+          hr: activity.avg_hr > 0 ? { value: String(Math.round(activity.avg_hr)), unit: 'bpm' } : null,
+        },
+      });
+    }
+    if (kind === 'sets') {
+      return strengthAssets({
+        title,
+        date,
+        scores: muscles.scores,
+        stats: {
+          time: { value: get('Time') ?? '–', unit: 'min' },
+          sets: { value: num(get('Sets')).value, unit: 'total' },
+          volume: num(get('Volume')),
+        },
+      });
+    }
+    return genericAssets({
+      title,
+      date,
+      stats: headline.map(([label, value]) => ({ label, ...num(value) })),
+    });
+  }, [activity, kind, headline, title, route.status, route.points, splits.status, splits.splits, splits.laps, muscles.scores]);
+  const fileBase = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'activity'}-${activity.start_time.slice(0, 10)}`;
 
   const loadingLine = (text) => (
     <p className="m-0 flex items-center gap-2 py-2 text-sm text-muted">
@@ -90,7 +144,7 @@ export default function ActivityDetail({ activity, onBack }) {
 
   const routeSection = wantsRoute && route.status !== 'none' && (
     <section className="flex flex-col gap-3">
-      {sectionTitle('Route', <><span className="lg:hidden">GPS · GPX</span><span className="hidden lg:inline">GPS</span></>)}
+      {sectionTitle('Route', 'GPS')}
       <div className="card p-5 lg:p-7">
         {route.status === 'loading' && loadingLine('Loading route…')}
         {route.status === 'error' && (
@@ -102,7 +156,7 @@ export default function ActivityDetail({ activity, onBack }) {
           </div>
         )}
         {route.status === 'ready' && (
-          <RouteLine points={route.points} distance={headline[0]?.[1]} name={title} start={activity.start_time} />
+          <RouteLine points={route.points} distance={headline[0]?.[1]} />
         )}
       </div>
     </section>
@@ -217,6 +271,7 @@ export default function ActivityDetail({ activity, onBack }) {
         }
         onBack={onBack}
         backLabel="Back to history"
+        action={<ShareButton onClick={() => setShareOpen(true)} />}
       />
 
       <StatStrip stats={stats} />
@@ -243,6 +298,8 @@ export default function ActivityDetail({ activity, onBack }) {
       {splitsBlock && (
         <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:items-start lg:gap-6">{splitsBlock}</div>
       )}
+
+      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} assets={assets} fileBase={fileBase} />
     </div>
   );
 }

@@ -1,7 +1,8 @@
 /**
  * Drawer. Phones: a bottom sheet that slides up (closes with a swipe down on
  * the grab handle). Desktop (`lg`): a side panel that slides in from the right,
- * full height. Both fade a backdrop, slide back out before unmounting, and close
+ * full height; with `modal`, a centred dialog that fades in instead (the share
+ * dialog), whose children draw their own title and close button. Both fade a backdrop, slide back out before unmounting, and close
  * on backdrop click, Esc or the ✕ button. Locks page scroll while open.
  *
  * Motion: opening is a little slower and ends softly (strong ease-out), closing
@@ -35,7 +36,7 @@ function useDesktop() {
   return on;
 }
 
-export default function Drawer({ open, onClose, title, children }) {
+export default function Drawer({ open, onClose, title, children, modal = false }) {
   const desktop = useDesktop();
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(false);
@@ -98,7 +99,13 @@ export default function Drawer({ open, onClose, title, children }) {
   };
 
   return (
-    <div className="fixed inset-0 z-40" data-no-ptr role="dialog" aria-modal="true" aria-label={title}>
+    <div
+      className={`fixed inset-0 z-40 ${modal ? 'lg:flex lg:items-center lg:justify-center' : ''}`}
+      data-no-ptr
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       <div
         onClick={onClose}
         className="absolute inset-0 bg-black/70"
@@ -106,20 +113,33 @@ export default function Drawer({ open, onClose, title, children }) {
       />
       <div
         ref={panel}
-        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[88vh] max-w-md flex-col rounded-t-[28px] border border-b-0 border-line-strong bg-black will-change-transform lg:inset-x-auto lg:inset-y-0 lg:right-0 lg:mx-0 lg:max-h-none lg:w-[560px] lg:max-w-[90vw] lg:rounded-none lg:rounded-l-3xl lg:border-b lg:border-r-0"
+        className={`absolute inset-x-0 bottom-0 mx-auto flex max-h-[88vh] max-w-md flex-col rounded-t-[28px] border border-b-0 border-line-strong bg-black will-change-transform ${
+          modal
+            ? 'lg:relative lg:inset-auto lg:mx-0 lg:h-[800px] lg:max-h-[90vh] lg:w-[1080px] lg:max-w-[calc(100vw-80px)] lg:rounded-[28px] lg:border-b'
+            : 'lg:inset-x-auto lg:inset-y-0 lg:right-0 lg:mx-0 lg:max-h-none lg:w-[560px] lg:max-w-[90vw] lg:rounded-none lg:rounded-l-3xl lg:border-b lg:border-r-0'
+        }`}
         style={{
           // desktop: from the right; phone: from the bottom. Reduced motion: fade in place instead of sliding.
           transform: desktop
-            ? reduce || shown ? 'none' : 'translateX(100%)'
+            ? modal
+              ? reduce || shown ? 'none' : 'translateY(16px)'
+              : reduce || shown ? 'none' : 'translateX(100%)'
             : reduce ? `translateY(${drag}px)` : shown ? `translateY(${drag}px)` : 'translateY(100%)',
-          opacity: reduce ? (shown ? 1 : 0) : 1,
+          // reduced motion, or the centred dialog on desktop: fade instead of sliding in
+          opacity: reduce || (desktop && modal) ? (shown ? 1 : 0) : 1,
           // no transition while a finger drags the sheet; it follows the finger 1:1
-          transition: drag ? 'none' : `${reduce ? 'opacity' : 'transform'} ${ms}ms ${ease}`,
+          transition: drag
+            ? 'none'
+            : reduce
+              ? `opacity ${ms}ms ${ease}`
+              : desktop && modal
+                ? `transform ${ms}ms ${ease}, opacity ${ms}ms ${ease}`
+                : `transform ${ms}ms ${ease}`,
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
         <div
-          className="cursor-grab touch-none px-5 pb-2 pt-3 lg:cursor-auto lg:touch-auto lg:px-8 lg:pt-8"
+          className={`cursor-grab touch-none px-5 pb-2 pt-3 lg:cursor-auto lg:touch-auto lg:px-8 lg:pt-8 ${modal ? 'lg:hidden' : ''}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -140,7 +160,7 @@ export default function Drawer({ open, onClose, title, children }) {
             </button>
           </div>
         </div>
-        <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-6 lg:flex-1 lg:px-8 lg:pb-8">{children}</div>
+        <div className={`min-h-0 overflow-y-auto overscroll-contain px-5 pb-6 lg:flex-1 lg:px-8 lg:pb-8 ${modal ? 'lg:pt-8' : ''}`}>{children}</div>
       </div>
     </div>
   );

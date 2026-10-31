@@ -7,25 +7,12 @@
  */
 import { meter } from '../lib/dots.js';
 import { duration, paceSec } from '../lib/format.js';
+import { lapLabels, paceLit } from '../lib/paceBar.js';
 import DotGrid from './DotGrid.jsx';
 
-const FAST = 420; // s per km: full bar
-const SLOW = 660; // s per km: one dot
-
 const paceOf = (r) => r.time / (r.dist / 1000);
-const bar = (pace, accent) =>
-  meter(Math.max(1, Math.min(16, Math.round(((SLOW - pace) / (SLOW - FAST)) * 16))), 16, { lit: accent ? 'acc' : 'on' });
+const bar = (pace, accent) => meter(paceLit(pace), 16, { lit: accent ? 'acc' : 'on' });
 const hrOf = (r) => (r.hr ? String(r.hr) : '–');
-
-const NAMES = { WARMUP: 'Warm-up', COOLDOWN: 'Cool-down', INTERVAL: 'Interval', RECOVERY: 'Recovery', REST: 'Rest' };
-const WORKOUT = new Set(['WARMUP', 'COOLDOWN', 'INTERVAL', 'RECOVERY', 'REST']);
-
-/** "Warm-up" / "Lap", and where the lap came from: Manual (lap button), Workout (a step) or Auto. */
-function lapLabels(l) {
-  const name = NAMES[l.intensity] ?? 'Lap';
-  const type = l.trigger === 'MANUAL' ? 'Manual' : WORKOUT.has(l.intensity) ? 'Workout' : 'Auto';
-  return { name, type };
-}
 
 const Title = ({ children, note }) => (
   <div className="flex items-baseline justify-between gap-2">
