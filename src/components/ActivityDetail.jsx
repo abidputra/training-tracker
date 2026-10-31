@@ -230,10 +230,6 @@ export default function ActivityDetail({ activity, onBack }) {
     </section>
   );
 
-  const comingSoon = isDistance && (
-    <p className="m-0 text-xs leading-relaxed text-muted">Pace and heart-rate charts are coming soon.</p>
-  );
-
   // Km splits and laps. On a phone they sit under the route; on desktop in a row of their own.
   const splitsBlock =
     wantsSplits && splits.status !== 'none' ? (
@@ -286,10 +282,7 @@ export default function ActivityDetail({ activity, onBack }) {
           }`}
         >
           {splitsBlock && <div className="flex flex-col gap-7 lg:order-2">{splitsBlock}</div>}
-          <div className="flex flex-col gap-7 lg:order-1">
-            {detailsSection}
-            {comingSoon}
-          </div>
+          <div className="flex flex-col gap-7 lg:order-1">{detailsSection}</div>
         </div>
       ) : (
         <>
@@ -303,12 +296,10 @@ export default function ActivityDetail({ activity, onBack }) {
               {routeSection}
               {musclesSection}
               {splitsBlock && <div className="flex flex-col gap-7 lg:hidden">{splitsBlock}</div>}
-              <div className="hidden lg:block">{comingSoon}</div>
             </div>
             <div className="flex flex-col gap-7">
               {exercisesSection}
               {detailsSection}
-              <div className="lg:hidden">{comingSoon}</div>
             </div>
           </div>
 
