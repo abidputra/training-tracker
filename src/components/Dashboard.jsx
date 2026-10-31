@@ -4,7 +4,7 @@
  * charts show; predictions and paces always use your recent best effort.
  */
 import { useMemo, useState } from 'react';
-import { DEFAULT_RANGE, RANGES, filterRange, fitness, getRuns } from '../lib/analysis.js';
+import { DEFAULT_RANGE, RANGES, filterRange, fitness, fitnessBefore, getRuns } from '../lib/analysis.js';
 import { paceSec } from '../lib/format.js';
 import DynamicsCard from './DynamicsCard.jsx';
 import PaceTableCard from './PaceTableCard.jsx';
@@ -26,6 +26,7 @@ export default function Dashboard({ activities, days, loading, hasConnection }) 
   const runs = useMemo(() => getRuns(activities), [activities]);
   const shown = useMemo(() => filterRange(runs, range), [runs, range]);
   const fit = useMemo(() => fitness(runs), [runs]);
+  const before = useMemo(() => fitnessBefore(runs), [runs]); // 30 days earlier: the baseline for the change columns
 
   if (loading) return <Empty>Loading…</Empty>;
   if (runs.length === 0) {
@@ -40,8 +41,8 @@ export default function Dashboard({ activities, days, loading, hasConnection }) 
   return (
     <div className="flex flex-col gap-8 lg:gap-14">
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-6">
-        <Anchor id="predictions"><PredictionCard fit={fit} /></Anchor>
-        <Anchor id="paces"><PaceTableCard fit={fit} /></Anchor>
+        <Anchor id="predictions"><PredictionCard fit={fit} before={before} /></Anchor>
+        <Anchor id="paces"><PaceTableCard fit={fit} before={before} /></Anchor>
       </div>
 
       <Anchor id="trends" className="flex flex-col gap-3.5">
