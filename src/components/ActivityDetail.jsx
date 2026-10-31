@@ -5,14 +5,16 @@
  * does not fetch it.
  */
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { activityKind, exerciseRows, exercisesOf, headlineStats, routeExpected, summaryRows } from '../lib/activityStats.js';
+import { activityKind, exerciseRows, exercisesOf, headlineStats, routeExpected, splitsExpected, summaryRows } from '../lib/activityStats.js';
 import { muscleLoad } from '../lib/muscles.js';
 import { meter } from '../lib/dots.js';
 import { useRoute } from '../hooks/useRoute.js';
+import { useSplits } from '../hooks/useSplits.js';
 import { sportInfo } from '../lib/format.js';
 import { supabase } from '../lib/supabase.js';
 import RouteLine from './RouteLine.jsx';
 import DotGrid from './DotGrid.jsx';
+import { KmSplits, Laps } from './Splits.jsx';
 import Spinner from './Spinner.jsx';
 import { DetailHeader, StatStrip, splitUnit } from './ui.jsx';
 
@@ -58,6 +60,8 @@ export default function ActivityDetail({ activity, onBack }) {
   const isDistance = activityKind(activity) === 'distance';
   const wantsRoute = routeExpected(activity);
   const route = useRoute(activity.id, wantsRoute);
+  const wantsSplits = splitsExpected(activity);
+  const splits = useSplits(activity.id, wantsSplits);
 
   const headline = headlineStats(activity);
   // the "main" number in the accent: distance for a run, volume for a workout
@@ -86,7 +90,7 @@ export default function ActivityDetail({ activity, onBack }) {
 
   const routeSection = wantsRoute && route.status !== 'none' && (
     <section className="flex flex-col gap-3">
-      {sectionTitle('Route', 'GPS · GPX')}
+      {sectionTitle('Route', <><span className="lg:hidden">GPS · GPX</span><span className="hidden lg:inline">GPS</span></>)}
       <div className="card p-5 lg:p-7">
         {route.status === 'loading' && loadingLine('Loading route…')}
         {route.status === 'error' && (
@@ -173,8 +177,34 @@ export default function ActivityDetail({ activity, onBack }) {
   );
 
   const comingSoon = isDistance && (
-    <p className="m-0 text-xs leading-relaxed text-muted">Laps, splits and pace or heart-rate charts are coming soon.</p>
+    <p className="m-0 text-xs leading-relaxed text-muted">Pace and heart-rate charts are coming soon.</p>
   );
+
+  // Km splits and laps. On a phone they sit under the route; on desktop in a row of their own.
+  const splitsBlock =
+    wantsSplits && splits.status !== 'none' ? (
+      splits.status === 'ready' ? (
+        <>
+          <KmSplits splits={splits.splits} />
+          <Laps laps={splits.laps} />
+        </>
+      ) : (
+        <section className="flex flex-col gap-3">
+          {sectionTitle('Km splits & laps')}
+          <div className="card p-5">
+            {splits.status === 'loading' && loadingLine('Loading splits…')}
+            {splits.status === 'error' && (
+              <div className="flex items-center justify-between gap-3 py-1 text-sm">
+                <span className="text-accent">Could not load splits: {splits.error}</span>
+                <button onClick={splits.retry} className="btn shrink-0">
+                  Try again
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      )
+    ) : null;
 
   return (
     <div className="flex flex-col gap-7 lg:gap-10">
@@ -200,6 +230,7 @@ export default function ActivityDetail({ activity, onBack }) {
         <div className="flex flex-col gap-7">
           {routeSection}
           {musclesSection}
+          {splitsBlock && <div className="flex flex-col gap-7 lg:hidden">{splitsBlock}</div>}
           <div className="hidden lg:block">{comingSoon}</div>
         </div>
         <div className="flex flex-col gap-7">
@@ -208,6 +239,10 @@ export default function ActivityDetail({ activity, onBack }) {
           <div className="lg:hidden">{comingSoon}</div>
         </div>
       </div>
+
+      {splitsBlock && (
+        <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:items-start lg:gap-6">{splitsBlock}</div>
+      )}
     </div>
   );
 }

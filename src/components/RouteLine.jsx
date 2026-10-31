@@ -50,7 +50,7 @@ export default function RouteLine({ points, distance, name = 'Activity', start }
             </span>
           )}
         </div>
-        <button onClick={download} className="btn w-full lg:w-auto">
+        <button onClick={download} className="btn w-full lg:hidden">
           <Icon name="download" /> Download GPX
         </button>
       </div>

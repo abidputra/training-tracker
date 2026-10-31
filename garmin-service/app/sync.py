@@ -23,7 +23,7 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 
-from . import crypto, db, gpx
+from . import crypto, db, gpx, splits
 
 log = logging.getLogger("garmin.sync")
 
@@ -263,6 +263,45 @@ def fetch_route(conn: dict, external_id: str) -> list[list]:
             if fresh != token_json:
                 db.patch("provider_tokens", {"connection_id": f"eq.{cid}"}, {"token_blob": crypto.encrypt(fresh)})
             return gpx.parse_track(data)
+        finally:
+            with _active_lock:
+                _active.discard(cid)
+
+
+def fetch_splits(conn: dict, external_id: str) -> dict:
+    """
+    Laps and per-km splits of ONE activity: {"laps": [...], "splits": [...]} (see splits.py).
+    Same session handling as fetch_route: one at a time, never during a sync, refreshed
+    tokens are kept. Two Garmin calls: the watch's laps, and the time series the km splits
+    are worked out from. If the time series is unavailable, auto-lapped km laps stand in.
+    Raises the library's Garmin* errors for the caller to map to HTTP.
+    """
+    cid = conn["id"]
+    with _route_lock:
+        with _active_lock:
+            if cid in _active:
+                raise RouteBusy()
+            _active.add(cid)
+        try:
+            stored = db.select("provider_tokens", {"connection_id": f"eq.{cid}", "select": "token_blob"})
+            if not stored or not stored[0].get("token_blob"):
+                raise GarminConnectAuthenticationError("No stored Garmin session")
+            try:
+                token_json = crypto.decrypt(stored[0]["token_blob"])
+            except InvalidToken as e:
+                raise TokenKeyMismatch() from e
+            g = _login_from_tokens(token_json)
+            laps = splits.parse_laps(g.get_activity_splits(external_id))
+            try:
+                km = splits.km_splits(g.get_activity_details(external_id))
+            except GarminConnectConnectionError:
+                km = []  # no time series for this activity: fall back to the laps below
+            if not km:
+                km = splits.splits_from_laps(laps)
+            fresh = g.client.dumps()
+            if fresh != token_json:
+                db.patch("provider_tokens", {"connection_id": f"eq.{cid}"}, {"token_blob": crypto.encrypt(fresh)})
+            return {"laps": laps, "splits": km}
         finally:
             with _active_lock:
                 _active.discard(cid)

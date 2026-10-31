@@ -67,7 +67,7 @@ export function SectionHead({ n, title, note, small = false }) {
 }
 
 /** 1M / 3M / YTD / 1Y / All. */
-export function RangePills({ value, onChange }) {
+export function RangePills({ value, onChange, large = false }) {
   return (
     <div className="flex gap-1.5 lg:gap-2">
       {RANGES.map((r) => (
@@ -76,7 +76,9 @@ export function RangePills({ value, onChange }) {
           title={r.name}
           aria-pressed={value === r.key}
           onClick={() => onChange(r.key)}
-          className={`flex-1 rounded-full border py-3 text-center text-xs lg:flex-none lg:px-[22px] lg:text-[13px] ${
+          className={`flex-1 rounded-full border text-center lg:flex-none lg:px-[22px] ${
+            large ? 'py-[13px] text-[13px]' : 'py-3 text-xs lg:text-[13px]'
+          } ${
             value === r.key ? 'border-accent bg-accent font-bold text-black' : 'border-line-strong text-white'
           }`}
         >

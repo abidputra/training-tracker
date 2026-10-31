@@ -300,12 +300,11 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
           </div>
           {/* desktop: table */}
           <div className="card hidden px-7 py-1 lg:block">
-            <div className="rule grid grid-cols-[2fr_1fr_1fr_1fr_1fr_24px] gap-5 pt-[18px] pb-3 text-xs tracking-[0.12em] text-muted uppercase">
+            <div className="rule grid grid-cols-[2fr_1fr_1fr_1fr_24px] gap-5 pt-[18px] pb-3 text-xs tracking-[0.12em] text-muted uppercase">
               <span>Exercise</span>
               <span>Sets × reps</span>
               <span>Avg / rep</span>
               <span>Volume</span>
-              <span>Max weight</span>
               <span />
             </div>
             {exercises.map((e) => {
@@ -314,13 +313,12 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
                 <button
                   key={e.name}
                   onClick={() => onExercise(e.name)}
-                  className="grid min-h-[72px] w-full grid-cols-[2fr_1fr_1fr_1fr_1fr_24px] items-center gap-5 border-b border-dotted border-line text-left text-sm last:border-b-0"
+                  className="grid min-h-[72px] w-full grid-cols-[2fr_1fr_1fr_1fr_24px] items-center gap-5 border-b border-dotted border-line text-left text-sm last:border-b-0"
                 >
                   <span className="text-[15px]">{e.name}</span>
                   <span>{setsReps}</span>
                   <span>{avg}</span>
                   <span className="font-bold">{vol}</span>
-                  <span>{e.maxWeight ? `${kgNum(e.maxWeight)} kg` : '–'}</span>
                   <Icon name="chevron" className="text-muted" />
                 </button>
               );

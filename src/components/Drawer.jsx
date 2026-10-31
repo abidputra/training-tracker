@@ -106,7 +106,7 @@ export default function Drawer({ open, onClose, title, children }) {
       />
       <div
         ref={panel}
-        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[88vh] max-w-md flex-col rounded-t-3xl border border-b-0 border-line-strong bg-black will-change-transform lg:inset-x-auto lg:inset-y-0 lg:right-0 lg:mx-0 lg:max-h-none lg:w-[480px] lg:max-w-[90vw] lg:rounded-none lg:rounded-l-3xl lg:border-b lg:border-r-0"
+        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[88vh] max-w-md flex-col rounded-t-[28px] border border-b-0 border-line-strong bg-black will-change-transform lg:inset-x-auto lg:inset-y-0 lg:right-0 lg:mx-0 lg:max-h-none lg:w-[560px] lg:max-w-[90vw] lg:rounded-none lg:rounded-l-3xl lg:border-b lg:border-r-0"
         style={{
           // desktop: from the right; phone: from the bottom. Reduced motion: fade in place instead of sliding.
           transform: desktop
@@ -119,15 +119,17 @@ export default function Drawer({ open, onClose, title, children }) {
         }}
       >
         <div
-          className="cursor-grab touch-none px-5 pb-2 pt-3 lg:cursor-auto lg:touch-auto lg:px-7 lg:pt-6"
+          className="cursor-grab touch-none px-5 pb-2 pt-3 lg:cursor-auto lg:touch-auto lg:px-8 lg:pt-8"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
-          <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong lg:hidden" />
+          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-line-strong lg:hidden" />
           <div className="flex items-center justify-between gap-3">
-            <h3 className="title m-0">{title}</h3>
+            <h3 className="title m-0" style={{ fontSize: desktop ? 30 : 24 }}>
+              {title}
+            </h3>
             <button
               onClick={onClose}
               onPointerDown={(e) => e.stopPropagation()}
@@ -138,7 +140,7 @@ export default function Drawer({ open, onClose, title, children }) {
             </button>
           </div>
         </div>
-        <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-6 lg:flex-1 lg:px-7 lg:pb-8">{children}</div>
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-6 lg:flex-1 lg:px-8 lg:pb-8">{children}</div>
       </div>
     </div>
   );

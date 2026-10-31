@@ -11,6 +11,7 @@ Endpoints
   POST   /garmin/sync          user JWT   manual "sync now" (60s cooldown)
   POST   /garmin/backfill      user JWT   import full history in the background (202)
   GET    /garmin/activities/{id}/route   user JWT   GPS track of one run (downloaded once, then cached)
+  GET    /garmin/activities/{id}/splits  user JWT   laps + per-km splits of one run (fetched once, then cached)
   POST   /strava/connect       user JWT   {code, scope} -> OAuth finish + history import
   POST   /strava/sync          user JWT   manual sync (60s cooldown)
   POST   /strava/backfill      user JWT   import full history in the background (202)
@@ -297,6 +298,68 @@ def activity_route(activity_id: str, user_id: str = Depends(db.current_user_id))
         on_conflict="activity_id",
     )
     return {"points": points}
+
+
+@app.get("/garmin/activities/{activity_id}/splits")
+def activity_splits(activity_id: str, user_id: str = Depends(db.current_user_id)) -> dict:
+    """
+    Laps and per-km splits of one of the caller's Garmin activities:
+    {"laps": [...], "splits": [...]} (see splits.py for the fields). The first request asks
+    Garmin and caches the result in `activity_splits`; later requests are answered from the
+    cache. Both lists empty = Garmin has nothing for this activity.
+    """
+    if not _UUID.fullmatch(activity_id):
+        raise HTTPException(404, "Activity not found.")
+    acts = db.select(
+        "activities",
+        {"id": f"eq.{activity_id}", "user_id": f"eq.{user_id}", "select": "id,provider,external_id"},
+    )
+    if not acts:
+        raise HTTPException(404, "Activity not found.")
+    act = acts[0]
+    if act["provider"] != "garmin":
+        raise HTTPException(404, "Splits are only available for Garmin activities.")
+
+    cached = db.select("activity_splits", {"activity_id": f"eq.{activity_id}", "select": "laps,splits"})
+    if cached:
+        return {"laps": cached[0]["laps"], "splits": cached[0]["splits"]}
+
+    conns = db.select(
+        "connections",
+        {"user_id": f"eq.{user_id}", "provider": "eq.garmin", "select": "id,user_id,status"},
+    )
+    if not conns:
+        raise HTTPException(404, "Garmin is not connected.")
+    conn = conns[0]
+    if conn["status"] == "needs_reauth":
+        raise HTTPException(409, "Garmin session expired. Please log in again.")
+
+    try:
+        result = sync.fetch_splits(conn, act["external_id"])
+    except sync.RouteBusy:
+        raise HTTPException(409, "A sync is running. Try again in a minute.")
+    except sync.TokenKeyMismatch:
+        raise HTTPException(
+            503,
+            "This server cannot decrypt the saved Garmin session: its TOKEN_ENCRYPTION_KEY "
+            "differs from the one that saved it.",
+        )
+    except GarminConnectAuthenticationError:
+        sync.mark_needs_reauth(conn["id"])
+        raise HTTPException(409, "Garmin session expired. Please log in again.")
+    except GarminConnectTooManyRequestsError:
+        raise HTTPException(429, "Garmin is rate limiting requests. Try again in a few minutes.")
+    except GarminConnectConnectionError as e:
+        if "404" not in str(e):
+            raise HTTPException(502, "Could not reach Garmin. Try again later.")
+        result = {"laps": [], "splits": []}  # Garmin has no lap data for this activity
+
+    db.upsert(
+        "activity_splits",
+        {"activity_id": activity_id, "user_id": user_id, "laps": result["laps"], "splits": result["splits"]},
+        on_conflict="activity_id",
+    )
+    return result
 
 
 @app.delete("/garmin/disconnect")

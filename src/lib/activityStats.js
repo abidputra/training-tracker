@@ -50,6 +50,11 @@ export function routeExpected(activity) {
   );
 }
 
+/** Garmin run/walk/hike with a distance: worth asking Garmin for its laps and km splits. */
+export function splitsExpected(activity) {
+  return activity.provider === 'garmin' && activityKind(activity) === 'distance' && sportInfo(activity.sport_type).usePace;
+}
+
 function setTotals(activity, raw) {
   const ex = exercisesOf(activity, raw);
   const sum = (key) => ex.reduce((a, e) => a + (num(e[key]) ?? 0), 0);
