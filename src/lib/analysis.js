@@ -125,6 +125,23 @@ export function fitness(runs) {
   return { ...best, maxHr: maxes.length ? Math.max(...maxes) : null };
 }
 
+/** Fitness as it stood `days` before the latest run: the baseline for "vs 30 days ago". Null if there was no effort then. */
+export function fitnessBefore(runs, days = 30) {
+  if (runs.length === 0) return null;
+  const cutoff = runs[runs.length - 1].t - days * DAY;
+  return fitness(runs.filter((r) => r.t <= cutoff));
+}
+
+/**
+ * Change in a time/pace between two moments: `before` and `now` in seconds (lower = faster).
+ * Returns { dir: 'faster' | 'slower' | 'same' | 'none', secs } where secs is whole seconds.
+ */
+export function changeOf(now, before) {
+  if (now == null || before == null) return { dir: 'none', secs: 0 };
+  const d = Math.round(before) - Math.round(now);
+  return { dir: d > 0 ? 'faster' : d < 0 ? 'slower' : 'same', secs: Math.abs(d) };
+}
+
 export const ZONES = [
   { key: 'Recovery', lo: 0.55, hi: 0.62 },
   { key: 'Z2', lo: 0.62, hi: 0.7 },
