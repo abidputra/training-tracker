@@ -11,6 +11,7 @@ import { getRuns } from '../lib/analysis.js';
 import { dayLabel, hoursMinutes, latest, recentHr, series, weeklyDistance } from '../lib/glance.js';
 import { bars, columns } from '../lib/dots.js';
 import DotGrid, { leaveBar, pickBar } from './DotGrid.jsx';
+import Count from './Count.jsx';
 
 // Statuses worth flagging get the accent; the rest stay white.
 const HRV_TONE = {
@@ -170,7 +171,7 @@ function GlanceCard({ card, data }) {
       {data ? (
         <>
           <div className="flex items-baseline gap-2.5">
-            <span className="num text-[64px] leading-[0.9] lg:text-[88px]">{value}</span>
+            <span className="num text-[64px] leading-[0.9] lg:text-[88px]"><Count text={value} /></span>
             <span className="text-xs tracking-[0.12em] text-muted uppercase">{data.unit}</span>
           </div>
           <div className={`text-xs ${picked ? 'text-accent' : 'text-muted'}`}>{sub}</div>

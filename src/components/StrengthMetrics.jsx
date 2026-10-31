@@ -22,6 +22,7 @@ import {
 } from '../lib/strength.js';
 import DotGrid, { leaveBar, pickBar } from './DotGrid.jsx';
 import { Empty, Icon, Note, RangePills, SectionHead } from './ui.jsx';
+import Count from './Count.jsx';
 
 const Anchor = ({ id, children }) => (
   <section id={id} className="flex scroll-mt-[calc(var(--top-inset)+4rem)] flex-col gap-3.5">
@@ -38,7 +39,7 @@ function DeskCard({ label, value, unit, accent, chart, sub }) {
     <div className="card flex flex-col justify-between gap-5 p-6">
       <div className="eyebrow">{label}</div>
       <div className="flex items-baseline gap-2.5">
-        <span className={`num text-[72px] leading-[0.9] ${accent ? 'text-accent' : ''}`}>{value}</span>
+        <span className={`num text-[72px] leading-[0.9] ${accent ? 'text-accent' : ''}`}><Count text={value} /></span>
         <span className="text-xs tracking-[0.12em] text-muted">{unit}</span>
       </div>
       <div className="flex flex-col gap-2.5">
@@ -93,7 +94,7 @@ function GlanceCards({ glance, top }) {
           <div className="card flex w-[min(300px,80%)] shrink-0 snap-start flex-col gap-3.5 p-5">
             <div className="eyebrow">Weekly volume</div>
             <div className="flex items-baseline gap-2">
-              <span className="num text-[64px] leading-[0.9]">{kgNum(shown.v)}</span>
+              <span className="num text-[64px] leading-[0.9]"><Count text={kgNum(shown.v)} /></span>
               <span className="text-xs tracking-[0.12em] text-muted">KG</span>
             </div>
             <div className={`text-xs ${sel != null ? 'text-accent' : 'text-muted'}`}>
@@ -111,7 +112,7 @@ function GlanceCards({ glance, top }) {
           <div className="card flex w-[min(300px,80%)] shrink-0 snap-start flex-col gap-3.5 p-5">
             <div className="eyebrow">Sessions</div>
             <div className="flex items-baseline gap-2">
-              <span className="num text-[64px] leading-[0.9]">{week.n}</span>
+              <span className="num text-[64px] leading-[0.9]"><Count text={week.n} /></span>
               <span className="text-xs tracking-[0.12em] text-muted">THIS WEEK</span>
             </div>
             <div className="text-xs text-muted">Last week {lastWeek.n} · last 30 days {month.sessions}</div>
@@ -127,7 +128,7 @@ function GlanceCards({ glance, top }) {
           ].map(([label, value]) => (
             <div key={label} className="rounded-2xl border border-line bg-black px-3 py-3.5">
               <div className="text-xs text-muted">{label}</div>
-              <div className="num mt-1.5 text-[30px] leading-[1.1]">{value}</div>
+              <div className="num mt-1.5 text-[30px] leading-[1.1]"><Count text={value} /></div>
             </div>
           ))}
         </div>
@@ -152,7 +153,7 @@ export function WeeklyChart({ title, weeks, get, fmt, unit, note }) {
         <span className="eyebrow">{title}</span>
         <div className="text-right">
           <div className="num text-[30px] lg:text-[40px]">
-            {latest ? fmt(latest) : '–'} <span className="font-mono text-xs font-normal text-muted">{unit}</span>
+            <Count text={latest ? fmt(latest) : '–'} /> <span className="font-mono text-xs font-normal text-muted">{unit}</span>
           </div>
           {d != null && (
             <div className="mt-1 text-xs text-muted">
@@ -237,7 +238,7 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
                     <span className="rounded-full border border-accent px-2 py-0.5 text-xs tracking-[0.1em] text-accent">NEW</span>
                   )}
                   <span className="num text-[30px]">
-                    {kgNum(r.pr)}
+                    <Count text={kgNum(r.pr)} />
                     <span className="font-mono text-xs font-normal text-muted"> kg</span>
                   </span>
                 </div>
@@ -257,7 +258,7 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
                   {r.isNew && <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-black">NEW</span>}
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="num text-[56px] leading-[0.9]">{kgNum(r.pr)}</span>
+                  <span className="num text-[56px] leading-[0.9]"><Count text={kgNum(r.pr)} /></span>
                   <span className="text-xs text-muted">kg</span>
                 </div>
                 <div className="text-xs text-muted">

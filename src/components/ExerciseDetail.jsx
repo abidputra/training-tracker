@@ -10,6 +10,7 @@ import { shortDate } from '../lib/format.js';
 import { exerciseHistory, kgNum } from '../lib/strength.js';
 import DotGrid from './DotGrid.jsx';
 import { DetailHeader, Icon, Note, RangePills, StatStrip } from './ui.jsx';
+import Count from './Count.jsx';
 
 const DAY = 86_400_000;
 const sum = (list, f) => list.reduce((a, x) => a + f(x), 0);
@@ -25,7 +26,7 @@ function SessionChart({ title, list, get, headline, sub }) {
         <span className="eyebrow">{title}</span>
         <div className="text-right">
           <div className="num text-[30px] lg:text-[40px]">
-            {headline} <span className="font-mono text-xs font-normal text-muted">KG</span>
+            <Count text={headline} /> <span className="font-mono text-xs font-normal text-muted">KG</span>
           </div>
           {sub && <div className="mt-1 text-xs text-muted">{sub}</div>}
         </div>

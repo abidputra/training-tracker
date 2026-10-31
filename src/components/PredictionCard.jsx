@@ -2,6 +2,7 @@
 import { RACES, changeOf, raceTime } from '../lib/analysis.js';
 import { duration, km, paceSec, shortDate } from '../lib/format.js';
 import { Change, Note, SectionHead } from './ui.jsx';
+import Count from './Count.jsx';
 
 export default function PredictionCard({ fit, before }) {
   return (
@@ -30,7 +31,7 @@ export default function PredictionCard({ fit, before }) {
                     <span className="text-xs text-muted">{pace}</span>
                   </div>
                   <span className="hidden w-40 text-sm tracking-[0.12em] uppercase lg:inline">{r.key}</span>
-                  <span className={`num flex-none text-[28px] lg:w-[206px] lg:text-5xl ${last ? 'text-accent' : ''}`}>{duration(t)}</span>
+                  <span className={`num flex-none text-[28px] lg:w-[206px] lg:text-5xl ${last ? 'text-accent' : ''}`}><Count text={duration(t)} /></span>
                   <div className="flex w-20 flex-none flex-col items-end gap-1.5 text-right lg:gap-1">
                     <Change change={change} fmt={duration} className="text-xs lg:text-sm" />
                     <span className="hidden text-xs text-muted lg:inline">{pace}</span>

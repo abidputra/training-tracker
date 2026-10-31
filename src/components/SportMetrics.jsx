@@ -14,6 +14,7 @@ import DotGrid from './DotGrid.jsx';
 import { WeeklyChart } from './StrengthMetrics.jsx';
 import TrendCard from './TrendCard.jsx';
 import { Empty, Icon, Note, RangePills, SectionHead } from './ui.jsx';
+import Count from './Count.jsx';
 
 const signed = (d, fmt) => `${d > 0 ? '+' : d < 0 ? '−' : ''}${fmt(Math.abs(d))}`;
 const sum = (list, f) => list.reduce((a, x) => a + f(x), 0);
@@ -40,7 +41,7 @@ function GlanceCard({ label, value, unit, accent, chart, sub }) {
     <div className="card flex flex-col justify-between gap-4 p-5 lg:gap-5 lg:p-6">
       <div className="eyebrow">{label}</div>
       <div className="flex items-baseline gap-2">
-        <span className={`num text-[40px] leading-[0.9] lg:text-[72px] ${accent ? 'text-accent' : ''}`}>{value}</span>
+        <span className={`num text-[40px] leading-[0.9] lg:text-[72px] ${accent ? 'text-accent' : ''}`}><Count text={value} /></span>
         <span className="text-xs tracking-[0.12em] text-muted uppercase">{unit}</span>
       </div>
       <div className="flex flex-col gap-2.5">
@@ -126,7 +127,7 @@ export default function SportMetrics({ def, items, loading, error, onRetry, onOp
                 >
                   <span className="eyebrow">{r.label}</span>
                   <div className="flex items-baseline gap-2">
-                    <span className="num text-[34px] leading-[0.9] lg:text-[48px]">{v.value}</span>
+                    <span className="num text-[34px] leading-[0.9] lg:text-[48px]"><Count text={v.value} /></span>
                     <span className="text-xs text-muted">{v.unit}</span>
                   </div>
                   <span className="text-xs text-muted">{shortDate(r.act.t)}</span>
