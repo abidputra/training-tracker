@@ -94,7 +94,7 @@ function fit(ctx, make, str, size, maxW) {
 // ---- pieces ------------------------------------------------------------------
 
 /** One big number with its label above and unit beside it (1080 x 540). */
-function drawStat(ctx, w, h, pal, { label, value, unit, hot }) {
+function drawStat(ctx, w, h, pal, { label, value, unit, hot, maxSize = 270 }) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#fff';
   ctx.font = MONO(400, 30);
@@ -103,7 +103,7 @@ function drawStat(ctx, w, h, pal, { label, value, unit, hot }) {
   const gap = unit ? 28 : 0;
   ctx.font = MONO(400, 34);
   const unitW = unit ? ctx.measureText(unit).width + unit.length * 3 : 0;
-  const size = fit(ctx, (s) => DOTO(900, s), value, 270, w - 140 - unitW - gap);
+  const size = fit(ctx, (s) => DOTO(900, s), value, maxSize, w - 140 - unitW - gap);
   ctx.font = DOTO(900, size);
   const valueW = ctx.measureText(value).width;
   const x0 = (w - (valueW + gap + unitW)) / 2;
@@ -143,13 +143,15 @@ function drawSummary(ctx, w, h, pal, { title, date, grid, mapShare, stats }) {
     drawGrid(ctx, grid, (w - width) / 2, 250 + (560 - height) / 2, width, pal);
   }
 
-  const colW = (w - 120) / stats.length;
+  // The numbers share one size (the widest one decides it), so a long value such as a time
+  // never ends up much smaller than the rest. They get the full width, side margins aside.
+  const colW = (w - 40) / stats.length;
+  const valSize = Math.min(...stats.map((s) => fit(ctx, (z) => DOTO(900, z), s.value, 124, colW - 16)));
   stats.forEach((s, i) => {
-    const cx = 60 + colW * i + colW / 2;
+    const cx = 20 + colW * i + colW / 2;
     ctx.fillStyle = '#fff';
     ctx.font = MONO(400, 26);
     spaced(ctx, s.label.toUpperCase(), cx, 1010, 4, 'center');
-    const valSize = fit(ctx, (z) => DOTO(900, z), s.value, 120, colW - 30);
     ctx.font = DOTO(900, valSize);
     ctx.fillStyle = s.hot ? pal.accent : '#fff';
     ctx.textAlign = 'center';
@@ -157,6 +159,24 @@ function drawSummary(ctx, w, h, pal, { title, date, grid, mapShare, stats }) {
     ctx.fillStyle = '#fff';
     ctx.font = MONO(400, 28);
     ctx.fillText(s.unit, cx, 1010 + 40 + valSize + 50);
+  });
+}
+
+/** Only the numbers, stacked and big, with no title and no map (1080 x 1350). */
+function drawNumbers(ctx, w, h, pal, { stats }) {
+  const rowH = h / stats.length;
+  ctx.font = MONO(400, 34);
+  const size = Math.min(
+    ...stats.map((s) => {
+      const unitW = s.unit ? ctx.measureText(s.unit).width + s.unit.length * 3 + 28 : 0;
+      return fit(ctx, (z) => DOTO(900, z), s.value, 250, w - 140 - unitW);
+    }),
+  );
+  stats.forEach((s, i) => {
+    ctx.save();
+    ctx.translate(0, i * rowH);
+    drawStat(ctx, w, rowH, pal, { ...s, maxSize: size });
+    ctx.restore();
   });
 }
 
@@ -211,23 +231,18 @@ export function runAssets({ title, date, routePoints, splits, laps, stats }) {
   const context = `${title} · ${date}`;
   const out = [];
   if (map) out.push({ id: 'map', name: 'Route map', size: SQUARE, draw: (c, w, h, p) => drawMap(c, w, h, p, map) });
+  const numbers = [
+    { label: 'Distance', ...stats.distance, hot: true },
+    { label: 'Time', ...stats.time },
+    { label: stats.paceLabel ?? 'Pace', ...stats.pace },
+  ];
   out.push({
     id: 'summary',
     name: 'Summary card',
     size: CARD,
-    draw: (c, w, h, p) =>
-      drawSummary(c, w, h, p, {
-        title,
-        date,
-        grid: map,
-        mapShare: 0.5,
-        stats: [
-          { label: 'Distance', ...stats.distance, hot: true },
-          { label: 'Time', ...stats.time },
-          { label: stats.paceLabel ?? 'Pace', ...stats.pace },
-        ],
-      }),
+    draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: map, mapShare: 0.5, stats: numbers }),
   });
+  out.push({ id: 'numbers', name: 'Numbers card', size: CARD, draw: (c, w, h, p) => drawNumbers(c, w, h, p, { stats: numbers }) });
   if (splits?.length) {
     const rows = splits.map((k, i) => ({
       a: String(k.n),
@@ -281,23 +296,18 @@ export function strengthAssets({ title, date, scores, stats }) {
   const map = scores && Object.keys(scores).length ? muscleGrid(scores) : null;
   const out = [];
   if (map) out.push({ id: 'map', name: 'Muscle map', size: SQUARE, draw: (c, w, h, p) => drawMap(c, w, h, p, map, 0.86) });
+  const numbers = [
+    { label: 'Time', ...stats.time },
+    { label: 'Sets', ...stats.sets },
+    { label: 'Volume', ...stats.volume, hot: true },
+  ];
   out.push({
     id: 'summary',
     name: 'Summary card',
     size: CARD,
-    draw: (c, w, h, p) =>
-      drawSummary(c, w, h, p, {
-        title,
-        date,
-        grid: map,
-        mapShare: 0.7,
-        stats: [
-          { label: 'Time', ...stats.time },
-          { label: 'Sets', ...stats.sets },
-          { label: 'Volume', ...stats.volume, hot: true },
-        ],
-      }),
+    draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: map, mapShare: 0.7, stats: numbers }),
   });
+  out.push({ id: 'numbers', name: 'Numbers card', size: CARD, draw: (c, w, h, p) => drawNumbers(c, w, h, p, { stats: numbers }) });
   const stat = (id, name, label, s, hot) => ({
     id,
     name,
@@ -312,13 +322,15 @@ export function strengthAssets({ title, date, scores, stats }) {
 
 /** Any other activity (no distance, no sets): a summary card and one card per number. */
 export function genericAssets({ title, date, stats }) {
+  const numbers = stats.map((s, i) => ({ ...s, hot: i === 0 }));
   const out = [
     {
       id: 'summary',
       name: 'Summary card',
       size: CARD,
-      draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: null, mapShare: 0, stats: stats.map((s, i) => ({ ...s, hot: i === 0 })) }),
+      draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: null, mapShare: 0, stats: numbers }),
     },
+    { id: 'numbers', name: 'Numbers card', size: CARD, draw: (c, w, h, p) => drawNumbers(c, w, h, p, { stats: numbers }) },
   ];
   stats.forEach((s, i) => {
     out.push({
