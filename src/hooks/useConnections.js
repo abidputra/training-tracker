@@ -8,10 +8,13 @@ import { supabase } from '../lib/supabase.js';
 
 export function useConnections(userId) {
   const [connections, setConnections] = useState({});
+  const [loaded, setLoaded] = useState(false); // false until the first fetch has answered
 
   const reload = useCallback(async () => {
-    const { data } = await supabase.from('connections').select('*');
+    const { data, error } = await supabase.from('connections').select('*');
+    if (error) return; // keep what we have; "loaded" stays false so nothing is decided from a failed read
     setConnections(Object.fromEntries((data ?? []).map((c) => [c.provider, c])));
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -34,5 +37,5 @@ export function useConnections(userId) {
     };
   }, [userId, reload]);
 
-  return { connections, reload };
+  return { connections, loaded, reload };
 }

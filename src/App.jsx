@@ -31,6 +31,7 @@ import Dashboard from './components/Dashboard.jsx';
 import ExerciseDetail from './components/ExerciseDetail.jsx';
 import FloatingMenu from './components/FloatingMenu.jsx';
 import GlanceSection from './components/GlanceSection.jsx';
+import OnboardConnect from './components/OnboardConnect.jsx';
 import ProfileMenu from './components/ProfileMenu.jsx';
 import SectionNav from './components/SectionNav.jsx';
 import Settings from './components/Settings.jsx';
@@ -84,7 +85,8 @@ export default function App() {
   const userId = session?.user?.id;
   const [view, setView] = useState('metrics'); // 'metrics' | 'history' | 'settings'
   const { activities, loading, reload: reloadActivities } = useActivities(userId);
-  const { connections, reload } = useConnections(userId);
+  const { connections, loaded: connectionsLoaded, reload } = useConnections(userId);
+  const [onboarding, setOnboarding] = useState(false); // first-run "Connect your app" sheet
   const { days, reload: reloadDays } = useDailyMetrics(userId);
   const { profile, reload: reloadProfile } = useProfile(userId);
   const [sport, setSport] = useState('running');
@@ -129,6 +131,34 @@ export default function App() {
     applyAccent(profileAccent);
     if (profileAccent) cacheAccent(userId, profileAccent);
   }, [userId, profileAccent]);
+
+  // First run: a new account with nothing connected gets the connect sheet once. Whoever already
+  // has a connection is marked as done, so disconnecting later never brings the sheet back.
+  const onboardKey = userId ? `onboarded:${userId}` : null;
+  const markOnboarded = useCallback(() => {
+    try {
+      if (onboardKey) localStorage.setItem(onboardKey, '1');
+    } catch {
+      /* private mode: the sheet may show again next visit */
+    }
+  }, [onboardKey]);
+  useEffect(() => {
+    if (!onboardKey || !connectionsLoaded) return;
+    let seen = false;
+    try {
+      seen = !!localStorage.getItem(onboardKey);
+    } catch {
+      /* treat as not seen */
+    }
+    if (seen) return;
+    if (Object.keys(connections).length > 0) markOnboarded();
+    else setOnboarding(true);
+    // only the first answer decides: later connection changes must not reopen or close it
+  }, [onboardKey, connectionsLoaded]);
+  const closeOnboarding = useCallback(() => {
+    markOnboarded();
+    setOnboarding(false);
+  }, [markOnboarded]);
 
   // every page change starts at the top
   useEffect(() => {
@@ -348,6 +378,21 @@ export default function App() {
       <footer className="mt-10 text-center text-xs text-[#777] lg:tracking-[0.12em] lg:uppercase">
         AIO Training Tracker · v{VERSION}
       </footer>
+
+      {onboarding && (
+        <OnboardConnect
+          onClose={closeOnboarding}
+          onConnected={() => {
+            markOnboarded();
+            reload();
+            refresh();
+          }}
+          onSettings={() => {
+            closeOnboarding();
+            changeView('settings');
+          }}
+        />
+      )}
 
       <Snackbar notice={notice} onClose={clearNotice} />
     </div>
