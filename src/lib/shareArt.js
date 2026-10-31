@@ -80,6 +80,14 @@ function spaced(ctx, str, x, y, spacing, align = 'left') {
   });
 }
 
+/** `str`, cut with an ellipsis so it is no wider than `maxW` (in the current font). */
+function ellipsize(ctx, str, maxW) {
+  if (ctx.measureText(str).width <= maxW) return str;
+  let s = str;
+  while (s.length > 1 && ctx.measureText(`${s}…`).width > maxW) s = s.slice(0, -1);
+  return `${s.trimEnd()}…`;
+}
+
 /** Largest font size (<= `size`) at which `str` fits in `maxW`. */
 function fit(ctx, make, str, size, maxW) {
   let s = size;
@@ -186,10 +194,14 @@ function drawTable(ctx, w, h, pal, { title, context, rows }) {
   ctx.fillStyle = '#fff';
   ctx.font = DOTO(900, 58);
   spaced(ctx, title.toUpperCase(), 60, 118, 2);
-  ctx.font = MONO(400, 24);
-  spaced(ctx, context, w - 60, 112, 0, 'right');
+  // The activity name and date go on their own line under the title, cut short if the name is
+  // long, so they can never run into the title (they used to share one line).
+  ctx.font = MONO(400, 26);
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left';
+  ctx.fillText(ellipsize(ctx, context, w - 120), 60, 166);
 
-  const top = 170;
+  const top = 214;
   const bottom = h - 110;
   const rowH = Math.min(84, Math.floor((bottom - top) / Math.max(rows.length, 1)));
   const font = rowH >= 60 ? 28 : 24;
