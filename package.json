@@ -1,7 +1,7 @@
 {
   "name": "training-tracker",
   "private": true,
-  "version": "0.6.1-r8",
+  "version": "0.6.1-r9",
   "type": "module",
   "scripts": {
     "dev": "vite",
