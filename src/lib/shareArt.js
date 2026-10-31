@@ -170,21 +170,29 @@ function drawSummary(ctx, w, h, pal, { title, date, grid, mapShare, stats }) {
   });
 }
 
-/** Only the numbers, stacked and big, with no title and no map (1080 x 1350). */
-function drawNumbers(ctx, w, h, pal, { stats }) {
-  const rowH = h / stats.length;
-  ctx.font = MONO(400, 34);
-  const size = Math.min(
-    ...stats.map((s) => {
-      const unitW = s.unit ? ctx.measureText(s.unit).width + s.unit.length * 3 + 28 : 0;
-      return fit(ctx, (z) => DOTO(900, z), s.value, 250, w - 140 - unitW);
-    }),
-  );
+/**
+ * "Stats only": the numbers side by side in one row, no title and no map (1080 x 540).
+ * Each column is label, big value, unit; the values share one size so none looks smaller.
+ */
+function drawStats(ctx, w, h, pal, { stats }) {
+  ctx.textBaseline = 'alphabetic';
+  const colW = (w - 80) / stats.length;
+  const size = Math.min(...stats.map((s) => fit(ctx, (z) => DOTO(900, z), s.value, 190, colW - 28)));
+  const cap = size * 0.72; // digit height of the dot font
+  const block = 30 + 38 + cap + 46 + 26;
+  const top = (h - block) / 2;
   stats.forEach((s, i) => {
-    ctx.save();
-    ctx.translate(0, i * rowH);
-    drawStat(ctx, w, rowH, pal, { ...s, maxSize: size });
-    ctx.restore();
+    const cx = 40 + colW * i + colW / 2;
+    ctx.fillStyle = '#fff';
+    ctx.font = MONO(400, 30);
+    spaced(ctx, s.label.toUpperCase(), cx, top + 26, 4, 'center');
+    ctx.font = DOTO(900, size);
+    ctx.fillStyle = s.hot ? pal.accent : '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(s.value, cx, top + 30 + 38 + cap);
+    ctx.fillStyle = '#fff';
+    ctx.font = MONO(400, 32);
+    ctx.fillText(s.unit, cx, top + 30 + 38 + cap + 46 + 22);
   });
 }
 
@@ -254,7 +262,7 @@ export function runAssets({ title, date, routePoints, splits, laps, stats }) {
     size: CARD,
     draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: map, mapShare: 0.5, stats: numbers }),
   });
-  out.push({ id: 'numbers', name: 'Numbers card', size: CARD, draw: (c, w, h, p) => drawNumbers(c, w, h, p, { stats: numbers }) });
+  out.push({ id: 'stats', name: 'Stats only', size: STAT, draw: (c, w, h, p) => drawStats(c, w, h, p, { stats: numbers }) });
   if (splits?.length) {
     const rows = splits.map((k, i) => ({
       a: String(k.n),
@@ -319,7 +327,7 @@ export function strengthAssets({ title, date, scores, stats }) {
     size: CARD,
     draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: map, mapShare: 0.7, stats: numbers }),
   });
-  out.push({ id: 'numbers', name: 'Numbers card', size: CARD, draw: (c, w, h, p) => drawNumbers(c, w, h, p, { stats: numbers }) });
+  out.push({ id: 'stats', name: 'Stats only', size: STAT, draw: (c, w, h, p) => drawStats(c, w, h, p, { stats: numbers }) });
   const stat = (id, name, label, s, hot) => ({
     id,
     name,
@@ -342,7 +350,7 @@ export function genericAssets({ title, date, stats }) {
       size: CARD,
       draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: null, mapShare: 0, stats: numbers }),
     },
-    { id: 'numbers', name: 'Numbers card', size: CARD, draw: (c, w, h, p) => drawNumbers(c, w, h, p, { stats: numbers }) },
+    { id: 'stats', name: 'Stats only', size: STAT, draw: (c, w, h, p) => drawStats(c, w, h, p, { stats: numbers }) },
   ];
   stats.forEach((s, i) => {
     out.push({
