@@ -138,6 +138,10 @@ export function route(points, cols = 36, maxRows = 28) {
   const grid = xy.map(([x, y]) => [Math.round(offX + (x - minX) * scale), Math.round(offY + (y - minY) * scale)]);
 
   const cells = Array(rows * cols).fill('dim');
+  // `order`: the cells in the order the track visits them, start first (the entrance animation
+  // follows it, so the route draws itself from start to finish)
+  const order = [];
+  const visited = new Set();
   for (let i = 0; i < grid.length - 1; i += 1) {
     const [x0, y0] = grid[i];
     const [x1, y1] = grid[i + 1];
@@ -145,12 +149,17 @@ export function route(points, cols = 36, maxRows = 28) {
     for (let s = 0; s <= n; s += 1) {
       const x = Math.round(x0 + ((x1 - x0) * s) / n);
       const y = Math.round(y0 + ((y1 - y0) * s) / n);
-      cells[y * cols + x] = 'acc';
+      const at = y * cols + x;
+      cells[at] = 'acc';
+      if (!visited.has(at)) {
+        visited.add(at);
+        order.push(at);
+      }
     }
   }
   const [sx, sy] = grid[0];
   cells[sy * cols + sx] = 'on';
-  return { cols, cells };
+  return { cols, cells, order };
 }
 
 // --- Body figures for the muscle map ------------------------------------------
@@ -222,7 +231,9 @@ export function body(view, levels) {
       else cells.push(LEVEL[levels[muscleAt(x, y)] ?? 0] ?? 'base');
     }
   }
-  return { cols: GW, cells };
+  // `order`: every cell, top row first and left to right within a row, so the entrance
+  // animation lights the figure from head to feet
+  return { cols: GW, cells, order: cells.map((_, i) => i) };
 }
 
 /** Level kind for a share 0..1 of the hardest-worked muscle. */

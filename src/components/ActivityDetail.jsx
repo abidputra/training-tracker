@@ -62,7 +62,7 @@ export default function ActivityDetail({ activity, onBack }) {
   const muscles = useMemo(() => muscleLoad(exercisesOf(activity, raw)), [activity, raw]);
   const hasMuscles = Object.keys(muscles.scores).length > 0;
   const isDistance = activityKind(activity) === 'distance';
-  const wantsRoute = routeExpected(activity);
+  const wantsRoute = routeExpected(activity, raw);
   const route = useRoute(activity.id, wantsRoute);
   const wantsSplits = splitsExpected(activity);
   const splits = useSplits(activity.id, wantsSplits);
@@ -230,10 +230,6 @@ export default function ActivityDetail({ activity, onBack }) {
     </section>
   );
 
-  const comingSoon = isDistance && (
-    <p className="m-0 text-xs leading-relaxed text-muted">Pace and heart-rate charts are coming soon.</p>
-  );
-
   // Km splits and laps. On a phone they sit under the route; on desktop in a row of their own.
   const splitsBlock =
     wantsSplits && splits.status !== 'none' ? (
@@ -260,6 +256,8 @@ export default function ActivityDetail({ activity, onBack }) {
       )
     ) : null;
 
+  const noRoute = isDistance && !routeSection;
+
   return (
     <div className="flex flex-col gap-7 lg:gap-10">
       <DetailHeader
@@ -276,27 +274,39 @@ export default function ActivityDetail({ activity, onBack }) {
 
       <StatStrip stats={stats} />
 
-      {/* desktop: two columns (run: route | details, workout: muscles | exercises + details) */}
-      <div
-        className={`grid grid-cols-1 gap-7 lg:items-start lg:gap-6 ${
-          isDistance ? 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]' : 'lg:grid-cols-2'
-        }`}
-      >
-        <div className="flex flex-col gap-7">
-          {routeSection}
-          {musclesSection}
-          {splitsBlock && <div className="flex flex-col gap-7 lg:hidden">{splitsBlock}</div>}
-          <div className="hidden lg:block">{comingSoon}</div>
+      {noRoute ? (
+        // a run without GPS (treadmill...): no map to anchor the page, so details sit beside the splits
+        <div
+          className={`grid grid-cols-1 gap-7 lg:items-start lg:gap-6 ${
+            splitsBlock ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]' : 'lg:grid-cols-2'
+          }`}
+        >
+          {splitsBlock && <div className="flex flex-col gap-7 lg:order-2">{splitsBlock}</div>}
+          <div className="flex flex-col gap-7 lg:order-1">{detailsSection}</div>
         </div>
-        <div className="flex flex-col gap-7">
-          {exercisesSection}
-          {detailsSection}
-          <div className="lg:hidden">{comingSoon}</div>
-        </div>
-      </div>
+      ) : (
+        <>
+          {/* desktop: two columns (run: route | details, workout: muscles | exercises + details) */}
+          <div
+            className={`grid grid-cols-1 gap-7 lg:items-start lg:gap-6 ${
+              isDistance ? 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]' : 'lg:grid-cols-2'
+            }`}
+          >
+            <div className="flex flex-col gap-7">
+              {routeSection}
+              {musclesSection}
+              {splitsBlock && <div className="flex flex-col gap-7 lg:hidden">{splitsBlock}</div>}
+            </div>
+            <div className="flex flex-col gap-7">
+              {exercisesSection}
+              {detailsSection}
+            </div>
+          </div>
 
-      {splitsBlock && (
-        <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:items-start lg:gap-6">{splitsBlock}</div>
+          {splitsBlock && (
+            <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:items-start lg:gap-6">{splitsBlock}</div>
+          )}
+        </>
       )}
 
       <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} assets={assets} fileBase={fileBase} />

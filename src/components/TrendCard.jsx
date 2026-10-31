@@ -8,6 +8,7 @@
 import { useMemo } from 'react';
 import LineChart from './LineChart.jsx';
 import { rolling, windowAvg } from '../lib/analysis.js';
+import Count from './Count.jsx';
 
 export default function TrendCard({
   title,
@@ -34,7 +35,7 @@ export default function TrendCard({
         {cur != null && (
           <div className="text-right">
             <div className="num text-[30px] lg:text-4xl">
-              {fmt(cur)} <span className="font-mono text-xs font-normal text-muted uppercase">{unit}</span>
+              <Count text={fmt(cur)} /> <span className="font-mono text-xs font-normal text-muted uppercase">{unit}</span>
             </div>
             <div className="mt-1 text-xs text-muted">
               4-wk avg{prev != null ? ` ${fmtDelta(cur - prev)} vs prev` : ''}

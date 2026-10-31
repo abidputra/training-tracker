@@ -22,11 +22,15 @@ async function loadRoute(activityId) {
 }
 
 export function useRoute(activityId, enabled) {
-  const [state, setState] = useState({ status: 'loading', points: [], error: null });
+  // not enabled = no GPS expected: 'none', so neither the page nor the share dialog waits for a map
+  const [state, setState] = useState({ status: enabled ? 'loading' : 'none', points: [], error: null });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled) {
+      setState({ status: 'none', points: [], error: null });
+      return undefined;
+    }
     let cancelled = false;
     setState({ status: 'loading', points: [], error: null });
     loadRoute(activityId)

@@ -12,6 +12,7 @@ import { dayLabel } from '../lib/glance.js';
 import Drawer from './Drawer.jsx';
 import LineChart from './LineChart.jsx';
 import { Note, RangePills, SectionHead } from './ui.jsx';
+import Count from './Count.jsx';
 
 const METRICS = [
   {
@@ -216,7 +217,7 @@ export default function DynamicsCard({ runs, days = [] }) {
                   <InfoIcon />
                 </div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="num text-[34px] lg:text-[56px]">{m.cur.toFixed(m.digits)}</span>
+                  <span className="num text-[34px] lg:text-[56px]"><Count text={m.cur.toFixed(m.digits)} /></span>
                   <span className="text-xs text-muted">{m.unit}</span>
                   <span className="ml-auto hidden text-xs lg:inline">
                     <Delta delta={m.delta} digits={m.digits} better={m.better} />

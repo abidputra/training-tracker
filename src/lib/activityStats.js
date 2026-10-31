@@ -41,12 +41,18 @@ export function activityKind(activity) {
   return 'general';
 }
 
-/** Outdoor Garmin activity with a distance: worth asking Garmin for a GPS route. */
-export function routeExpected(activity) {
+/**
+ * Garmin activity that recorded GPS: worth asking for a route. `raw` is the activity's full
+ * payload (undefined while it loads): Garmin only gives a start position when the watch had a
+ * GPS fix, so treadmill runs, pool swims and the like have none and get no Route section.
+ */
+export function routeExpected(activity, raw) {
   return (
     activity.provider === 'garmin' &&
     activityKind(activity) === 'distance' &&
-    !/treadmill|indoor|virtual/i.test(activity.sport_type ?? '')
+    !/treadmill|indoor|virtual/i.test(activity.sport_type ?? '') &&
+    Number.isFinite(raw?.startLatitude) &&
+    Number.isFinite(raw?.startLongitude)
   );
 }
 
