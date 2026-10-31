@@ -14,3 +14,13 @@ if (!url || !anonKey) {
 }
 
 export const supabase = createClient(url ?? 'http://invalid', anonKey ?? 'invalid');
+
+/**
+ * A second client used ONLY to create an account. It keeps no session, so signing
+ * up never signs the browser in (with email confirmation off, Supabase would
+ * otherwise start a session at once): the new user is sent back to the sign-in
+ * form instead. Own storageKey so it does not clash with the main client.
+ */
+export const supabaseSignup = createClient(url ?? 'http://invalid', anonKey ?? 'invalid', {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sb-signup' },
+});
