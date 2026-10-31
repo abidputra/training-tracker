@@ -165,10 +165,11 @@ export default function ActivityHistory({ items, loading, error, onRetry }) {
   return (
     <div>
       {/* desktop: page title with the filter chips on the right */}
-      <div className="mb-10 hidden items-end justify-between gap-6 lg:flex">
+      <div className="mb-10 hidden flex-wrap items-end justify-between gap-x-6 gap-y-5 lg:flex">
         <h1 className="m-0 font-dot text-[64px] leading-[0.95] font-black tracking-[0.02em] uppercase">Activity History</h1>
+        {/* wraps under the title when there are too many sports to fit beside it, instead of running past the content edge */}
         {families.length > 1 && (
-          <div className="flex gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
             <Chips {...filterProps} />
           </div>
         )}
