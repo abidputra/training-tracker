@@ -11,6 +11,7 @@ const PATHS = {
   strength: 'M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12',
   close: 'M6 6l12 12M18 6L6 18',
   chevron: 'M8.5 5l7 7-7 7',
+  share: 'M12 3v12M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6',
   ride: 'M2 17a3 3 0 1 0 6 0a3 3 0 1 0-6 0M16 17a3 3 0 1 0 6 0a3 3 0 1 0-6 0M5 17l4-8h6l4 8M9 9H6',
   swim: 'M2 19c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5M2 14c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5M14 6a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0M7 11l4-3 3 2',
   hike: 'M3 19l6-11 4 6 2-3 6 8z',
@@ -67,7 +68,7 @@ export function SectionHead({ n, title, note, small = false }) {
 }
 
 /** 1M / 3M / YTD / 1Y / All. */
-export function RangePills({ value, onChange }) {
+export function RangePills({ value, onChange, large = false }) {
   return (
     <div className="flex gap-1.5 lg:gap-2">
       {RANGES.map((r) => (
@@ -76,7 +77,9 @@ export function RangePills({ value, onChange }) {
           title={r.name}
           aria-pressed={value === r.key}
           onClick={() => onChange(r.key)}
-          className={`flex-1 rounded-full border py-3 text-center text-xs lg:flex-none lg:px-[22px] lg:text-[13px] ${
+          className={`flex-1 rounded-full border text-center lg:flex-none lg:px-[22px] ${
+            large ? 'py-[13px] text-[13px]' : 'py-3 text-xs lg:text-[13px]'
+          } ${
             value === r.key ? 'border-accent bg-accent font-bold text-black' : 'border-line-strong text-white'
           }`}
         >
@@ -131,8 +134,22 @@ export function splitUnit(text) {
   return m ? { value: m[1], unit: m[2] } : { value: String(text), unit: '' };
 }
 
+/** Share: a round icon on phones, a labelled pill on desktop. Sits at the right of the title row. */
+export function ShareButton({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label="Share"
+      className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center gap-2.5 rounded-full border border-line-strong bg-black text-white active:bg-neutral-900 lg:w-auto lg:px-5 lg:text-[13px]"
+    >
+      <Icon name="share" />
+      <span className="hidden lg:inline">Share</span>
+    </button>
+  );
+}
+
 /** Back button + title + subtitle row used by detail screens. */
-export function DetailHeader({ title, sub, onBack, backLabel = 'Back' }) {
+export function DetailHeader({ title, sub, onBack, backLabel = 'Back', action }) {
   return (
     <div className="flex items-center gap-3.5 lg:gap-4">
       <CircleButton icon="back" label={backLabel} onClick={onBack} />
@@ -142,6 +159,7 @@ export function DetailHeader({ title, sub, onBack, backLabel = 'Back' }) {
         </h1>
         {sub && <p className="m-0 mt-1 text-xs text-muted lg:mt-1.5 lg:text-[13px]">{sub}</p>}
       </div>
+      {action}
     </div>
   );
 }

@@ -296,7 +296,7 @@ export default function App() {
 
   return (
     <div className="mx-auto max-w-md px-4 pb-28 pt-4 lg:max-w-[1280px] lg:px-6 lg:pb-16 lg:pt-4">
-      <TopBar view={view} onChange={changeView} lastSynced={lastSynced} connections={connections}>
+      <TopBar view={view} onChange={changeView} lastSynced={lastSynced}>
         {controls}
       </TopBar>
 

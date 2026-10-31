@@ -4,9 +4,11 @@
  *            account's email through the email_for_username() function.
  *   Sign up: username + email + password. Username is checked for availability
  *            first, and stored in the signup metadata (copied to `profiles` by a trigger).
+ *            The account is created without starting a session, then the form goes back
+ *            to Sign in with the username filled in, so new users log in themselves.
  */
 import { useState } from 'react';
-import { supabase } from '../lib/supabase.js';
+import { supabase, supabaseSignup } from '../lib/supabase.js';
 import { USERNAME_HELP, isValidUsername, normalizeUsername } from '../lib/username.js';
 import PasswordInput from './PasswordInput.jsx';
 
@@ -41,7 +43,7 @@ export default function AuthForm() {
     if (checkError) throw checkError;
     if (!free) throw new Error('That username is already taken.');
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseSignup.auth.signUp({
       email,
       password,
       options: { data: { username: uname } },
@@ -52,10 +54,19 @@ export default function AuthForm() {
     if (data.user?.identities?.length === 0) {
       throw new Error('This email is already registered. Try signing in instead.');
     }
-    // With email confirmation enabled, signUp returns no session until the link is clicked.
-    if (!data.session) {
-      setMessage({ type: 'info', text: 'Check your email to confirm your account, then sign in.' });
-    }
+    // Back to the sign-in form with the username ready; only the password is left to type.
+    // (Email confirmation on: no session exists yet either way, the link has to be clicked first.)
+    setMode('signin');
+    setIdentifier(uname);
+    setUsername('');
+    setEmail('');
+    setPassword('');
+    setMessage({
+      type: 'info',
+      text: data.session
+        ? 'Account created. Sign in to continue.'
+        : 'Account created. Check your email to confirm it, then sign in.',
+    });
   }
 
   async function submit(e) {

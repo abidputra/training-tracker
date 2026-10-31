@@ -139,7 +139,6 @@ export function recentExercises(history, now = Date.now()) {
       repsPerSet: sets ? Math.round(reps / sets) : null,
       perRep: reps && volume ? volume / reps : null,
       volume,
-      trend: list.map((h) => h.maxWeight).filter(Boolean).slice(-8),
     });
   }
   return out.sort((a, b) => b.volume - a.volume || b.sets - a.sets);

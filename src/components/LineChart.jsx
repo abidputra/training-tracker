@@ -12,7 +12,8 @@ import DotGrid from './DotGrid.jsx';
 
 const dateLabel = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
-export default function LineChart({ points, avg = [], fmt, higherIsUp = true, emptyText = 'No runs in this range.', cols = 36, rows = 20 }) {
+export default function LineChart({ points, avg = [], fmt, higherIsUp = true, emptyText = 'No runs in this range.', cols = 36, rows = 20, large = false }) {
+  const t = large ? 'text-sm' : 'text-xs'; // `large`: the drawer, where 12 px labels are too small
   const [selCol, setSelCol] = useState(null);
   const base = useMemo(
     () => scatter({ points, avg, cols, rows, invert: !higherIsUp }),
@@ -36,12 +37,12 @@ export default function LineChart({ points, avg = [], fmt, higherIsUp = true, em
 
   return (
     <div className="flex flex-col gap-3.5">
-      <div className="text-xs text-muted">
+      <div className={`${t} ${large ? 'text-[#b5b5b5]' : 'text-muted'}`}>
         {sel ? dateLabel(shown.t) : `Latest · ${dateLabel(shown.t)}`}
         <span className="ml-2 text-white">{fmt(shown.v)}</span>
       </div>
       <div className="flex gap-2">
-        <div className="flex w-10 shrink-0 flex-col justify-between text-xs text-muted">
+        <div className={`flex w-10 shrink-0 flex-col justify-between ${t} text-muted`}>
           {base.axis.map((v, i) => (
             <span key={i}>{fmt(v, true)}</span>
           ))}
@@ -54,7 +55,7 @@ export default function LineChart({ points, avg = [], fmt, higherIsUp = true, em
           label={`Chart, ${points.length} values from ${dateLabel(base.t0)} to ${dateLabel(base.t1)}`}
         />
       </div>
-      <div className="flex justify-between pl-12 text-xs text-muted">
+      <div className={`flex justify-between pl-12 ${t} ${large ? 'text-[#b5b5b5]' : 'text-muted'}`}>
         <span>{dateLabel(base.t0)}</span>
         {base.t1 !== base.t0 && <span>{dateLabel(base.t1)}</span>}
       </div>

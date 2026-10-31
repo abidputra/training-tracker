@@ -24,21 +24,61 @@ export const SYNC_PROVIDERS = [
 // empty string means "same origin".
 const GARMIN_URL = (import.meta.env.VITE_GARMIN_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 
+const LOCAL = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(GARMIN_URL);
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Free hosting puts the service to sleep when idle, and waking takes up to a
+ * minute. While it boots, the host answers without CORS headers, so the browser
+ * reports a plain network error ("could not reach"). Poll /health, which only
+ * succeeds once the real service is up, then the caller retries.
+ */
+async function wakeService() {
+  const until = Date.now() + 75_000;
+  while (Date.now() < until) {
+    try {
+      const res = await fetch(`${GARMIN_URL}/health`, { cache: 'no-store' });
+      if (res.ok) return true;
+    } catch {
+      /* still starting */
+    }
+    await wait(3000);
+  }
+  return false;
+}
+
 /** Garmin service call. Throws Error(message) with the server's `detail` on failure. */
 export async function garminApi(path, { method = 'POST', body } = {}) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('You are signed out. Please sign in again.');
 
-  let res;
-  try {
-    res = await fetch(`${GARMIN_URL}${path}`, {
+  const send = () =>
+    fetch(`${GARMIN_URL}${path}`, {
       method,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: body ? JSON.stringify(body) : undefined,
     });
+
+  let res;
+  try {
+    res = await send();
   } catch {
-    throw new Error('Could not reach the Garmin service.');
+    if (LOCAL) throw new Error('Could not reach the Garmin service on localhost:8000. Is it running?');
+    // A pending MFA login lives in the service's memory, so a restart loses it: never retry that call.
+    const woke = await wakeService();
+    if (!woke || path === '/garmin/mfa') {
+      throw new Error(
+        woke
+          ? 'The Garmin service restarted. Please start the connection again.'
+          : 'The Garmin service is not responding. It sleeps when idle and can take a minute to start, try again shortly.',
+      );
+    }
+    try {
+      res = await send();
+    } catch {
+      throw new Error('Could not reach the Garmin service.');
+    }
   }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.detail || json.error || `Request failed (${res.status})`);

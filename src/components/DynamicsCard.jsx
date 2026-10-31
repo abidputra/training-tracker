@@ -88,9 +88,9 @@ function weightSummary(days) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-2xl border border-line px-3.5 py-3">
-      <div className="text-xs text-muted">{label}</div>
-      <div className="mt-1 text-sm font-bold">{value}</div>
+    <div className="rounded-[20px] border border-line-strong px-5 py-4">
+      <div className="text-sm text-[#b5b5b5]">{label}</div>
+      <div className="mt-2.5 text-lg font-bold">{value}</div>
     </div>
   );
 }
@@ -143,21 +143,22 @@ function Detail({ metric, runs, weight }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <RangePills value={range} onChange={setRange} />
+      <RangePills value={range} onChange={setRange} large />
       <LineChart
+        large
         points={points}
         avg={avg}
         emptyText={metric.isWeight ? 'No weigh-ins in this range.' : undefined}
         fmt={(v) => fmt(v)}
         higherIsUp={metric.better !== 'down'}
       />
-      <Note>{note}</Note>
-      <div className="grid grid-cols-2 gap-2">
+      <p className="m-0 text-sm leading-relaxed text-[#b5b5b5]">{note}</p>
+      <div className="grid grid-cols-2 gap-3">
         {stats.map((s) => <Stat key={s.label} {...s} />)}
       </div>
-      <div className="card p-4">
-        <div className="eyebrow mb-2">What it means</div>
-        <p className="m-0 text-sm leading-relaxed text-[#cfcfcf]">{metric.info}</p>
+      <div className="flex flex-col gap-3 rounded-[20px] border border-line-strong p-5">
+        <div className="text-sm tracking-[0.14em] text-[#b5b5b5] uppercase">What it means</div>
+        <p className="m-0 text-base leading-relaxed text-white">{metric.info}</p>
       </div>
     </div>
   );

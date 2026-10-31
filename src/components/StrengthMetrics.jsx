@@ -8,7 +8,7 @@
  */
 import { useMemo, useState } from 'react';
 import { DEFAULT_RANGE } from '../lib/analysis.js';
-import { bars, columns, meter } from '../lib/dots.js';
+import { bars, meter } from '../lib/dots.js';
 import { duration, shortDate } from '../lib/format.js';
 import {
   exerciseHistory,
@@ -286,12 +286,7 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
                 onClick={() => onExercise(e.name)}
                 className="flex flex-col gap-3 rounded-2xl border border-line bg-black p-4 text-left active:bg-neutral-950"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-bold">{e.name}</span>
-                  {e.trend.length > 1 && (
-                    <DotGrid grid={columns(e.trend, 4)} style={{ gridTemplateColumns: `repeat(${e.trend.length}, 8px)` }} />
-                  )}
-                </div>
+                <span className="text-sm font-bold">{e.name}</span>
                 <div className="grid grid-cols-3 gap-2">
                   {statRows(e).map(([label, value]) => (
                     <div key={label} className="flex flex-col gap-0.5">
@@ -305,12 +300,11 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
           </div>
           {/* desktop: table */}
           <div className="card hidden px-7 py-1 lg:block">
-            <div className="rule grid grid-cols-[2fr_1fr_1fr_1fr_140px_24px] gap-5 pt-[18px] pb-3 text-xs tracking-[0.12em] text-muted uppercase">
+            <div className="rule grid grid-cols-[2fr_1fr_1fr_1fr_24px] gap-5 pt-[18px] pb-3 text-xs tracking-[0.12em] text-muted uppercase">
               <span>Exercise</span>
               <span>Sets × reps</span>
               <span>Avg / rep</span>
               <span>Volume</span>
-              <span>Max weight</span>
               <span />
             </div>
             {exercises.map((e) => {
@@ -319,13 +313,12 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
                 <button
                   key={e.name}
                   onClick={() => onExercise(e.name)}
-                  className="grid min-h-[72px] w-full grid-cols-[2fr_1fr_1fr_1fr_140px_24px] items-center gap-5 border-b border-dotted border-line text-left text-sm last:border-b-0"
+                  className="grid min-h-[72px] w-full grid-cols-[2fr_1fr_1fr_1fr_24px] items-center gap-5 border-b border-dotted border-line text-left text-sm last:border-b-0"
                 >
                   <span className="text-[15px]">{e.name}</span>
                   <span>{setsReps}</span>
                   <span>{avg}</span>
                   <span className="font-bold">{vol}</span>
-                  <span className="block w-24">{e.trend.length > 1 && <DotGrid grid={columns(e.trend, 4)} />}</span>
                   <Icon name="chevron" className="text-muted" />
                 </button>
               );
