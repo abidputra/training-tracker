@@ -62,7 +62,7 @@ export default function ActivityDetail({ activity, onBack }) {
   const muscles = useMemo(() => muscleLoad(exercisesOf(activity, raw)), [activity, raw]);
   const hasMuscles = Object.keys(muscles.scores).length > 0;
   const isDistance = activityKind(activity) === 'distance';
-  const wantsRoute = routeExpected(activity);
+  const wantsRoute = routeExpected(activity, raw);
   const route = useRoute(activity.id, wantsRoute);
   const wantsSplits = splitsExpected(activity);
   const splits = useSplits(activity.id, wantsSplits);
