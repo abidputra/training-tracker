@@ -21,7 +21,7 @@ import {
   weekly,
 } from '../lib/strength.js';
 import DotGrid, { leaveBar, pickBar } from './DotGrid.jsx';
-import { Empty, Icon, Note, RangePills, SectionHead } from './ui.jsx';
+import { Empty, Icon, Note, Pager, RangePills, SectionHead } from './ui.jsx';
 import Count from './Count.jsx';
 
 const Anchor = ({ id, children }) => (
@@ -31,6 +31,7 @@ const Anchor = ({ id, children }) => (
 );
 
 const fmtWeek = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+const EXERCISES_PER_PAGE = 10;
 const sumOf = (list, f) => list.reduce((a, x) => a + f(x), 0);
 
 /**
@@ -163,6 +164,7 @@ export function WeeklyChart({ title, weeks, get, fmt, unit, note }) {
 export default function StrengthMetrics({ sessions, loading, error, onRetry, onExercise }) {
   const [range, setRange] = useState(DEFAULT_RANGE);
   const [allRecsOpen, setAllRecsOpen] = useState(false); // Records: latest 5, or every exercise
+  const [exPage, setExPage] = useState(0); // Exercises: zero-based page
   const glance = useMemo(() => strengthGlance(sessions), [sessions]);
   const history = useMemo(() => exerciseHistory(sessions), [sessions]);
   const allRecs = useMemo(() => records(history), [history]);
@@ -189,6 +191,14 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
   if (sessions.length === 0) return <Empty>No strength workouts yet. They appear here once synced from Garmin.</Empty>;
 
   const maxPct = split[0]?.pct ?? 1;
+  const exPages = Math.ceil(exercises.length / EXERCISES_PER_PAGE);
+  const exCur = Math.min(exPage, Math.max(0, exPages - 1)); // the list can shrink after a sync
+  const exShown = exercises.slice(exCur * EXERCISES_PER_PAGE, (exCur + 1) * EXERCISES_PER_PAGE);
+  const goExPage = (p) => {
+    setExPage(p);
+    // the lists differ in height: bring the top of the section back into view
+    document.getElementById('exercises')?.scrollIntoView({ block: 'start' });
+  };
   const statRows = (e) => [
     ['Sets × reps', e.repsPerSet ? `${e.sets} × ${e.repsPerSet}` : `${e.sets} sets`],
     ['Avg / rep', e.perRep ? `${kgNum(e.perRep)} kg` : '–'],
@@ -268,7 +278,7 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
           <SectionHead n="03" title="Exercises" note="Last 30 days" />
           {/* phone: cards */}
           <div className="grid grid-cols-1 gap-2.5 lg:hidden">
-            {exercises.map((e) => (
+            {exShown.map((e) => (
               <button
                 key={e.name}
                 onClick={() => onExercise(e.name)}
@@ -295,7 +305,7 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
               <span>Volume</span>
               <span />
             </div>
-            {exercises.map((e) => {
+            {exShown.map((e) => {
               const [setsReps, avg, vol] = statRows(e).map((r) => r[1]);
               return (
                 <button
@@ -312,6 +322,7 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
               );
             })}
           </div>
+          <Pager page={exCur} pages={exPages} onChange={goExPage} />
         </Anchor>
       )}
 
