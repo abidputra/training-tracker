@@ -166,32 +166,9 @@ def _wellness_weight(g: Garmin, uid: str, start: date, end: date) -> list[dict]:
     return rows
 
 
-def _wellness_vo2max(g: Garmin, uid: str, start: date, end: date) -> list[dict]:
-    """
-    Garmin's current running VO2max. Only the last few days are asked for: the value changes
-    after an activity, and Garmin answers each day with the figure as it stood then.
-    """
-    rows: dict[str, dict] = {}
-    day = max(start, end - timedelta(days=4))
-    while day < end:
-        data = g.get_max_metrics(day.isoformat())
-        for item in data if isinstance(data, list) else [data]:
-            generic = (item or {}).get("generic") or {}
-            value = _num(generic.get("vo2MaxPreciseValue")) or _num(generic.get("vo2MaxValue"))
-            if value and generic.get("calendarDate"):
-                rows[generic["calendarDate"]] = {
-                    "user_id": uid,
-                    "day": generic["calendarDate"],
-                    "vo2max": value,
-                    "updated_at": _now_iso(),
-                }
-        day += timedelta(days=1)
-    return list(rows.values())
-
-
 def sync_wellness(g: Garmin, uid: str, days: int) -> int:
     """
-    Upserts HRV, sleep, weight and VO2max into `daily_metrics` for the last `days` days.
+    Upserts HRV, sleep and weight into `daily_metrics` for the last `days` days.
     Each source is saved on its own (an upsert only touches the columns it
     sends), and a failure in one never fails the activity sync.
     Rate limiting propagates so the caller handles it like any other sync.
@@ -199,12 +176,7 @@ def sync_wellness(g: Garmin, uid: str, days: int) -> int:
     end = datetime.now(timezone.utc).date() + timedelta(days=1)  # users ahead of UTC are already "tomorrow"
     start = end - timedelta(days=days)
     saved = 0
-    for name, fetch in (
-        ("hrv", _wellness_hrv),
-        ("sleep", _wellness_sleep),
-        ("weight", _wellness_weight),
-        ("vo2max", _wellness_vo2max),
-    ):
+    for name, fetch in (("hrv", _wellness_hrv), ("sleep", _wellness_sleep), ("weight", _wellness_weight)):
         try:
             rows = fetch(g, uid, start, end)
             if rows:
