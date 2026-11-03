@@ -127,13 +127,23 @@ function GlanceCards({ glance, top }) {
 }
 
 export function WeeklyChart({ title, weeks, get, fmt, unit, note }) {
+  const [sel, setSel] = useState(null); // index of the week under the pointer / last tapped
   const vals = weeks.map(get);
-  const grid = bars(vals, 10, { w: weeks.length > 16 ? 1 : 2, minSlots: 12 }); // few weeks: pad, never giant dots
-  const latest = vals[vals.length - 1];
+  const pick = sel != null && sel < weeks.length ? sel : null; // the range may have shrunk since
+  const minSlots = 12; // few weeks: pad on the left, never giant dots
+  const pad = Math.max(0, minSlots - vals.length);
+  const grid = useMemo(
+    () => bars(vals, 10, { w: weeks.length > 16 ? 1 : 2, minSlots, hi: pick ?? undefined }),
+    [weeks, pick],
+  );
+  const shownIdx = pick ?? vals.length - 1;
+  const latest = vals[shownIdx];
   const cur = vals.slice(-4).filter(Boolean);
   const prev = vals.slice(-8, -4).filter(Boolean);
   const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
   const d = avg(cur) != null && avg(prev) != null ? avg(cur) - avg(prev) : null;
+  const weekName = (i) =>
+    i === weeks.length - 1 ? 'This week' : i === weeks.length - 2 ? 'Last week' : `Week of ${fmtWeek(weeks[i].t)}`;
 
   return (
     <div className="card flex flex-col gap-3.5 p-5 lg:gap-5 lg:p-7">
@@ -143,15 +153,28 @@ export function WeeklyChart({ title, weeks, get, fmt, unit, note }) {
           <div className="num text-[30px] lg:text-[40px]">
             <Count text={latest ? fmt(latest) : '–'} /> <span className="font-mono text-xs font-normal text-muted">{unit}</span>
           </div>
-          {d != null && (
-            <div className="mt-1 text-xs text-muted">
-              4-wk avg {d >= 0 ? '+' : '−'}
-              {fmt(Math.abs(d))} {unit.toLowerCase()} vs prev
-            </div>
+          {pick != null ? (
+            <div className="mt-1 text-xs text-accent">{weekName(pick)}</div>
+          ) : (
+            d != null && (
+              <div className="mt-1 text-xs text-muted">
+                4-wk avg {d >= 0 ? '+' : '−'}
+                {fmt(Math.abs(d))} {unit.toLowerCase()} vs prev
+              </div>
+            )
           )}
         </div>
       </div>
-      <DotGrid grid={grid} label={`${title}, ${weeks.length} weeks`} />
+      <DotGrid
+        grid={grid}
+        label={`${title}, ${weeks.length} weeks`}
+        onColumn={(c, how) => {
+          const at = grid.barAt(c); // null on the gap between bars
+          const bar = at == null ? null : at - pad; // the padded empty slots on the left are not weeks
+          pickBar(setSel, bar != null && bar >= 0 ? bar : null, how);
+        }}
+        onLeave={leaveBar(setSel)}
+      />
       <div className="flex justify-between text-xs text-muted">
         <span>{weeks.length} wks ago</span>
         <span>This week</span>
