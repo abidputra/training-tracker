@@ -33,7 +33,8 @@ export default function Count({ text, className = '', id }) {
     let raf;
     const start = performance.now();
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / DURATION);
+      // the frame timestamp can be a hair older than `start`: never let progress go below 0
+      const t = Math.max(0, Math.min(1, (now - start) / DURATION));
       setP(ease(t));
       if (t < 1) raf = requestAnimationFrame(tick);
     };

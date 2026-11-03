@@ -33,118 +33,95 @@ const Anchor = ({ id, children }) => (
 const fmtWeek = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 const sumOf = (list, f) => list.reduce((a, x) => a + f(x), 0);
 
-/** One of the four desktop glance cards. */
-function DeskCard({ label, value, unit, accent, chart, sub }) {
+/**
+ * One glance card, the same on every screen size: label, big number with its unit, a line of
+ * context, and optionally a bar chart (hover or tap a bar to read that week). `big` cards (the
+ * two charts) are wider and carry a larger number on a phone; the small ones sit in a grid.
+ */
+function GlanceCard({ label, value, unit, accent, sub, subHot, chart, big, foot, className = '' }) {
   return (
-    <div className="card flex flex-col justify-between gap-5 p-6">
+    <div className={`card flex h-full flex-col justify-between gap-3.5 ${big ? 'p-5' : 'p-4'} lg:gap-5 lg:p-6 ${className}`}>
       <div className="eyebrow">{label}</div>
-      <div className="flex items-baseline gap-2.5">
-        <span className={`num text-[72px] leading-[0.9] ${accent ? 'text-accent' : ''}`}><Count text={value} /></span>
-        <span className="text-xs tracking-[0.12em] text-muted">{unit}</span>
+      <div className="flex items-baseline gap-2">
+        <span className={`num leading-[0.9] ${big ? 'text-[64px]' : 'text-[34px]'} lg:text-[72px] ${accent ? 'text-accent' : ''}`}>
+          <Count text={value} />
+        </span>
+        <span className="text-xs tracking-[0.12em] text-muted uppercase">{unit}</span>
       </div>
       <div className="flex flex-col gap-2.5">
-        {chart && <DotGrid grid={chart} className="w-full max-w-[200px]" />}
-        <div className="text-xs text-muted">{sub}</div>
+        <div className={`text-xs ${subHot ? 'text-accent' : 'text-muted'}`}>{sub}</div>
+        {chart}
+        {foot && <div className="text-xs text-muted">{foot}</div>}
       </div>
     </div>
   );
 }
 
+/** The same six numbers on phone and desktop: two weekly charts, then four summary cards. */
 function GlanceCards({ glance, top }) {
-  const [sel, setSel] = useState(null);
-  const [selS, setSelS] = useState(null); // the picked week on the Sessions chart
+  const [sel, setSel] = useState(null); // the week picked on the volume chart
+  const [selS, setSelS] = useState(null); // ... and on the sessions chart
   const { weeks, week, lastWeek, month } = glance;
   const hi = sel ?? weeks.length - 1;
-  const grid = useMemo(() => bars(weeks.map((w) => w.v), 7, { hi }), [weeks, hi]);
-  const deskBars = useMemo(() => bars(weeks.map((w) => w.v), 5), [weeks]);
-  const shown = weeks[hi];
-  const nameOf = (i) => (i === weeks.length - 1 ? 'This week' : i === weeks.length - 2 ? 'Last week' : `Week of ${fmtWeek(weeks[i].t)}`);
-  const name = nameOf(hi);
   const hiS = selS ?? weeks.length - 1;
+  const grid = useMemo(() => bars(weeks.map((w) => w.v), 7, { hi }), [weeks, hi]);
   const gridS = useMemo(() => bars(weeks.map((w) => w.n), 7, { hi: hiS }), [weeks, hiS]);
+  const nameOf = (i) => (i === weeks.length - 1 ? 'This week' : i === weeks.length - 2 ? 'Last week' : `Week of ${fmtWeek(weeks[i].t)}`);
+  const plural = (n) => `${n} session${n === 1 ? '' : 's'}`;
   const weekSets = sumOf(week.sessions, (s) => s.sets);
-  const last4 = sumOf(weeks.slice(-4), (w) => w.n);
+
+  const chartFor = (g, pick, leave) => (
+    <DotGrid grid={g} onColumn={(c, how) => pickBar(pick, g.barAt(c), how)} onLeave={leaveBar(leave)} className="w-full lg:max-w-[200px]" />
+  );
 
   return (
-    <>
-      {/* desktop: four cards in a row */}
-      <div className="hidden gap-4 lg:grid lg:grid-cols-4">
-        <DeskCard
-          label="Weekly Volume"
-          value={kgNum(week.v)}
-          unit="kg"
-          accent
-          chart={deskBars}
-          sub={`This week · ${week.n} session${week.n === 1 ? '' : 's'}`}
-        />
-        <DeskCard label="Sessions" value={week.n} unit="this week" sub={`${last4} in the last 4 weeks`} />
-        <DeskCard
-          label="Total Sets"
-          value={weekSets}
+    // desktop: one grid of six cards (the two wrappers below dissolve); phone: a swipeable pair of charts, then a 2 x 2 grid
+    <div className="lg:grid lg:grid-cols-3 lg:gap-4">
+      <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 lg:contents">
+        <div className="w-[min(300px,80%)] shrink-0 snap-start lg:w-auto">
+          <GlanceCard
+            big
+            accent
+            label="Weekly volume"
+            value={kgNum(weeks[hi].v)}
+            unit="kg"
+            sub={sel != null ? `${nameOf(hi)} · ${plural(weeks[hi].n)}` : `This week · ${plural(week.n)} · last week ${kgNum(lastWeek.v)} kg`}
+            subHot={sel != null}
+            chart={chartFor(grid, setSel, setSel)}
+            foot="Mon–Sun, last 8 weeks · tap a bar"
+          />
+        </div>
+        <div className="w-[min(300px,80%)] shrink-0 snap-start lg:w-auto">
+          <GlanceCard
+            big
+            label="Sessions"
+            value={String(weeks[hiS].n)}
+            unit={selS != null ? 'sessions' : 'this week'}
+            sub={selS != null ? nameOf(hiS) : `Last week ${lastWeek.n} · last 30 days ${month.sessions}`}
+            subHot={selS != null}
+            chart={chartFor(gridS, setSelS, setSelS)}
+            foot="Sessions per week, last 8 weeks · tap a bar"
+          />
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:contents">
+        <GlanceCard
+          label="Total sets"
+          value={String(weekSets)}
           unit="this week"
-          sub={week.n ? `Avg ${(weekSets / week.n).toFixed(1)} per session` : 'No sessions yet this week'}
+          sub={week.n ? `Avg ${(weekSets / week.n).toFixed(1)} per session · ${month.sets} in 30 days` : `${month.sets} in the last 30 days`}
         />
-        <DeskCard
-          label="Top Lift"
+        <GlanceCard
+          label="Top lift"
           value={top ? kgNum(top.pr) : '–'}
           unit={top ? 'kg' : ''}
           sub={top ? `${top.name} · ${fmtWeek(top.t)}` : 'No weighted lifts yet'}
         />
+        <GlanceCard label="Avg time" value={month.avgTime ? duration(month.avgTime) : '–'} unit="per session" sub="Last 30 days" />
+        <GlanceCard label="Avg per rep" value={month.perRep ? kgNum(month.perRep) : '–'} unit="kg" sub="Last 30 days" />
       </div>
-
-      {/* phone: swipeable weekly cards plus a row of 30-day numbers */}
-      <div className="lg:hidden">
-        <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4">
-          <div className="card flex w-[min(300px,80%)] shrink-0 snap-start flex-col gap-3.5 p-5">
-            <div className="eyebrow">Weekly volume</div>
-            <div className="flex items-baseline gap-2">
-              <span className="num text-[64px] leading-[0.9]"><Count text={kgNum(shown.v)} /></span>
-              <span className="text-xs tracking-[0.12em] text-muted">KG</span>
-            </div>
-            <div className={`text-xs ${sel != null ? 'text-accent' : 'text-muted'}`}>
-              {sel != null
-                ? `${name} · ${shown.n} session${shown.n === 1 ? '' : 's'}`
-                : `This week · last week ${kgNum(lastWeek.v)} kg`}
-            </div>
-            <DotGrid
-              grid={grid}
-              onColumn={(c, how) => pickBar(setSel, grid.barAt(c), how)}
-              onLeave={leaveBar(setSel)}
-            />
-            <div className="text-xs text-muted">Mon–Sun, last 8 weeks · tap a bar</div>
-          </div>
-          <div className="card flex w-[min(300px,80%)] shrink-0 snap-start flex-col gap-3.5 p-5">
-            <div className="eyebrow">Sessions</div>
-            <div className="flex items-baseline gap-2">
-              <span className="num text-[64px] leading-[0.9]"><Count text={weeks[hiS].n} /></span>
-              <span className="text-xs tracking-[0.12em] text-muted">{selS != null ? 'SESSIONS' : 'THIS WEEK'}</span>
-            </div>
-            <div className={`text-xs ${selS != null ? 'text-accent' : 'text-muted'}`}>
-              {selS != null ? nameOf(hiS) : `Last week ${lastWeek.n} · last 30 days ${month.sessions}`}
-            </div>
-            <DotGrid
-              grid={gridS}
-              onColumn={(c, how) => pickBar(setSelS, gridS.barAt(c), how)}
-              onLeave={leaveBar(setSelS)}
-            />
-            <div className="text-xs text-muted">Sessions per week, last 8 weeks · tap a bar</div>
-          </div>
-        </div>
-        <div className="mt-3.5 grid grid-cols-3 gap-2">
-          {[
-            ['Total sets', month.sets || '–'],
-            ['Avg time', month.avgTime ? duration(month.avgTime) : '–'],
-            ['Avg / rep · kg', month.perRep ? kgNum(month.perRep) : '–'],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl border border-line bg-black px-3 py-3.5">
-              <div className="text-xs text-muted">{label}</div>
-              <div className="num mt-1.5 text-[30px] leading-[1.1]"><Count text={value} /></div>
-            </div>
-          ))}
-        </div>
-        <Note className="mt-3.5">Sets, time and weight per rep: last 30 days.</Note>
-      </div>
-    </>
+    </div>
   );
 }
 
