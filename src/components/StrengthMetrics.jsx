@@ -52,12 +52,16 @@ function DeskCard({ label, value, unit, accent, chart, sub }) {
 
 function GlanceCards({ glance, top }) {
   const [sel, setSel] = useState(null);
+  const [selS, setSelS] = useState(null); // the picked week on the Sessions chart
   const { weeks, week, lastWeek, month } = glance;
   const hi = sel ?? weeks.length - 1;
   const grid = useMemo(() => bars(weeks.map((w) => w.v), 7, { hi }), [weeks, hi]);
   const deskBars = useMemo(() => bars(weeks.map((w) => w.v), 5), [weeks]);
   const shown = weeks[hi];
-  const name = hi === weeks.length - 1 ? 'This week' : hi === weeks.length - 2 ? 'Last week' : `Week of ${fmtWeek(shown.t)}`;
+  const nameOf = (i) => (i === weeks.length - 1 ? 'This week' : i === weeks.length - 2 ? 'Last week' : `Week of ${fmtWeek(weeks[i].t)}`);
+  const name = nameOf(hi);
+  const hiS = selS ?? weeks.length - 1;
+  const gridS = useMemo(() => bars(weeks.map((w) => w.n), 7, { hi: hiS }), [weeks, hiS]);
   const weekSets = sumOf(week.sessions, (s) => s.sets);
   const last4 = sumOf(weeks.slice(-4), (w) => w.n);
 
@@ -112,12 +116,18 @@ function GlanceCards({ glance, top }) {
           <div className="card flex w-[min(300px,80%)] shrink-0 snap-start flex-col gap-3.5 p-5">
             <div className="eyebrow">Sessions</div>
             <div className="flex items-baseline gap-2">
-              <span className="num text-[64px] leading-[0.9]"><Count text={week.n} /></span>
-              <span className="text-xs tracking-[0.12em] text-muted">THIS WEEK</span>
+              <span className="num text-[64px] leading-[0.9]"><Count text={weeks[hiS].n} /></span>
+              <span className="text-xs tracking-[0.12em] text-muted">{selS != null ? 'SESSIONS' : 'THIS WEEK'}</span>
             </div>
-            <div className="text-xs text-muted">Last week {lastWeek.n} · last 30 days {month.sessions}</div>
-            <DotGrid grid={bars(weeks.map((w) => w.n), 7)} />
-            <div className="text-xs text-muted">Sessions per week, last 8 weeks</div>
+            <div className={`text-xs ${selS != null ? 'text-accent' : 'text-muted'}`}>
+              {selS != null ? nameOf(hiS) : `Last week ${lastWeek.n} · last 30 days ${month.sessions}`}
+            </div>
+            <DotGrid
+              grid={gridS}
+              onColumn={(c, how) => pickBar(setSelS, gridS.barAt(c), how)}
+              onLeave={leaveBar(setSelS)}
+            />
+            <div className="text-xs text-muted">Sessions per week, last 8 weeks · tap a bar</div>
           </div>
         </div>
         <div className="mt-3.5 grid grid-cols-3 gap-2">

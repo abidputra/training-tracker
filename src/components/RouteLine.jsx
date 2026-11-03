@@ -1,6 +1,6 @@
 /**
  * The route as a dot-matrix drawing (no map): the GPS track rasterised onto a
- * dot grid, north up, proportions kept. Accent = track, white dot = start.
+ * dot grid, north up, proportions kept. Accent = track, white dot = start, white ring = finish.
  * Nothing is downloaded and the route never leaves the device. Sharing the map
  * as an image is in the Share dialog.
  *
@@ -21,6 +21,10 @@ export default function RouteLine({ points, distance }) {
         <span className="flex items-center gap-2">
           <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-white" />
           Start
+        </span>
+        <span className="flex items-center gap-2">
+          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full border-2 border-white" />
+          Finish
         </span>
         {distance && (
           <span className="flex items-center gap-2">

@@ -6,6 +6,7 @@
  *   'dim'  unlit dot        'none' empty (gap between bars, outside a figure)
  *   'base' grey (unworked muscle)   'sel' lit-grey (selected column)
  *   'l2' / 'l3'  steps between white and the accent (muscle intensity)
+ *   'fin'  white ring: the finish of a route
  *
  * Pure functions, no React.
  */
@@ -41,15 +42,15 @@ export function bars(input, rows, { w = 2, hi: hiIn, minSlots = 0 } = {}) {
   return { cols, cells, barAt };
 }
 
-/** Column chart, one dot column per value, scaled min..max. Last column in the accent. */
-export function columns(vals, rows) {
+/** Column chart, one dot column per value, scaled min..max. The `hi` column (default: the last) in the accent. */
+export function columns(vals, rows, hi = vals.length - 1) {
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const hs = vals.map((v) => 1 + Math.round(((v - min) / (max - min || 1)) * (rows - 1)));
   const cells = [];
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < vals.length; c += 1) {
-      cells.push(rows - r <= hs[c] ? (c === vals.length - 1 ? 'acc' : 'on') : 'dim');
+      cells.push(rows - r <= hs[c] ? (c === hi ? 'acc' : 'on') : 'dim');
     }
   }
   return { cols: vals.length, cells };
@@ -158,6 +159,8 @@ export function route(points, cols = 36, maxRows = 28) {
     }
   }
   const [sx, sy] = grid[0];
+  const [fx, fy] = grid[grid.length - 1];
+  if (fy * cols + fx !== sy * cols + sx) cells[fy * cols + fx] = 'fin'; // the finish: a ring (a loop ends on its start)
   cells[sy * cols + sx] = 'on';
   return { cols, cells, order };
 }

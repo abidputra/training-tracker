@@ -191,6 +191,11 @@ body {
 .d-l2 { --c: color-mix(in srgb, var(--accent) 35%, #fff); }
 .d-l3 { --c: color-mix(in srgb, var(--accent) 70%, #fff); }
 .d-none { background: none; }
+/* the finish of a route: a ring instead of a filled dot */
+.d-fin {
+  background: radial-gradient(circle closest-side, transparent 0, transparent 36%, var(--c) 42%, var(--c) 64%, transparent 70%);
+  --c: #fff;
+}
 
 /* Entrance of a dot chart (components/DotGrid.jsx): the lit dots start unlit and each one
    switches on, instantly, at its own delay (`backwards` holds the unlit look until then). */

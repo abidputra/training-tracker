@@ -1,7 +1,8 @@
 /**
  * The header "Sync" button: syncs every connected first-party service at once
  * (SYNC_PROVIDERS in lib/api.js), then reloads the app's data and reports one
- * summary message (see lib/syncSummary.js for the rules).
+ * summary message (see lib/syncSummary.js for the rules). `sync()` resolves true when a sync ran
+ * (and the data was reloaded), false when it was skipped.
  */
 import { useCallback, useRef, useState } from 'react';
 import { SYNC_PROVIDERS, garminApi } from '../lib/api.js';
@@ -12,12 +13,12 @@ export function useSyncAll(connections, onNotice, onSynced) {
   const running = useRef(false);
 
   const sync = useCallback(async () => {
-    if (running.current) return;
+    if (running.current) return false;
 
     const { usable, notice } = planSync(SYNC_PROVIDERS, connections);
     if (notice) {
       onNotice(notice);
-      return;
+      return false;
     }
 
     running.current = true;
@@ -26,6 +27,7 @@ export function useSyncAll(connections, onNotice, onSynced) {
       const results = await Promise.allSettled(usable.map((p) => garminApi(p.path)));
       await onSynced(); // pull the new rows in right away
       onNotice(summarizeSync(usable, results));
+      return true;
     } finally {
       running.current = false;
       setSyncing(false);

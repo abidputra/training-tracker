@@ -11,7 +11,7 @@ import { useReveal } from '../hooks/useReveal.js';
 
 // Dots that "switch on" in the entrance: the data itself. Unlit dots, the grey body outline and
 // the selected column are just there from the start, like the unpowered LED board.
-const LIT = new Set(['on', 'acc', 'l2', 'l3']);
+const LIT = new Set(['on', 'acc', 'l2', 'l3', 'fin']);
 const SWITCH_ON_MS = 1400; // the whole board, however many dots
 
 /** A short name for what the grid shows, so a chart that already played is not played again. */

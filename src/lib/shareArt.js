@@ -49,7 +49,7 @@ function mix(hex, pct) {
 /** Colour of each dot kind (see lib/dots.js) for this export. */
 function palette({ accent, solid }) {
   const unlit = solid ? '#2A2A2A' : 'rgba(255, 255, 255, 0.18)';
-  return { accent, on: '#FFFFFF', acc: accent, dim: unlit, base: unlit, sel: unlit, l2: mix(accent, 0.35), l3: mix(accent, 0.7) };
+  return { accent, on: '#FFFFFF', acc: accent, dim: unlit, base: unlit, sel: unlit, fin: '#FFFFFF', l2: mix(accent, 0.35), l3: mix(accent, 0.7) };
 }
 
 /** Draws { cols, cells } across `w` px starting at (x, y); returns the height used. */
