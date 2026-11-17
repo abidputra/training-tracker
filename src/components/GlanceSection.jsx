@@ -67,6 +67,8 @@ const CARDS = [
       const d = latest(days, 'hrv_last_night');
       if (!d) return null;
       const tone = HRV_TONE[d.hrv_status];
+      const nights = days.filter((n) => n.hrv_last_night != null).slice(-14);
+      const sub = (n) => (n.hrv_weekly_avg != null ? `7-day avg ${Math.round(n.hrv_weekly_avg)} ms` : 'Overnight average');
       return {
         value: Math.round(d.hrv_last_night),
         unit: 'ms',
@@ -78,7 +80,11 @@ const CARDS = [
               }`
             : 'Last night average',
         chart: { type: 'columns', points: series(days, 'hrv_last_night', 14) },
-        foot: `${dayLabel(d.t)} · last 14 nights`,
+        foot: `${dayLabel(d.t)} · last 14 nights · tap a bar`,
+        pick: (i) => {
+          const n = nights[i];
+          return { value: Math.round(n.hrv_last_night), sub: `${dayLabel(n.t)} · ${sub(n)}`, badge: HRV_TONE[n.hrv_status] };
+        },
       };
     },
   },
@@ -120,7 +126,11 @@ const CARDS = [
         unit: 'bpm',
         sub: change(Math.round(cur.v), prev && Math.round(prev.v), 0, 'prior 7 days') ?? `${cur.n} run${cur.n > 1 ? 's' : ''}`,
         chart: { type: 'columns', points: hrRuns.map((r) => ({ t: r.t, v: r.hr })) },
-        foot: `Runs, last 7 days · ${cur.n} run${cur.n > 1 ? 's' : ''}`,
+        foot: `Runs, last 7 days · ${cur.n} run${cur.n > 1 ? 's' : ''} · tap a bar`,
+        pick: (i) => {
+          const r = hrRuns[i];
+          return { value: Math.round(r.hr), sub: `${dayLabel(r.t)} · ${r.name || 'Run'}` };
+        },
       };
     },
   },
@@ -132,12 +142,12 @@ function CardChart({ chart, selected, setSel, pickable }) {
   const grid = useMemo(() => {
     if (!pts || pts.length < 2) return null;
     const vals = pts.map((p) => p.v);
-    return chart.type === 'bars'
-      ? bars(vals, 7, { w: vals.length > 10 ? 1 : 2, hi: selected ?? vals.length - 1 })
-      : columns(vals, 6);
+    const hi = selected ?? vals.length - 1;
+    return chart.type === 'bars' ? bars(vals, 7, { w: vals.length > 10 ? 1 : 2, hi }) : columns(vals, 6, hi);
   }, [chart.type, pts, selected]);
   if (!grid) return null;
-  const onColumn = pickable && grid.barAt ? (c, how) => pickBar(setSel, grid.barAt(c), how) : undefined;
+  // bar charts map a column back to its bar; a column chart has one column per value
+  const onColumn = pickable ? (c, how) => pickBar(setSel, grid.barAt ? grid.barAt(c) : c, how) : undefined;
   return <DotGrid grid={grid} onColumn={onColumn} onLeave={onColumn && leaveBar(setSel)} className="w-full lg:max-w-[260px]" />;
 }
 

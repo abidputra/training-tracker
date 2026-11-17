@@ -178,3 +178,21 @@ export function Change({ change, fmt, className = '' }) {
     dir === 'faster' ? [`▲ ${fmt(secs)}`, 'text-white'] : dir === 'slower' ? [`▼ ${fmt(secs)}`, 'text-accent'] : ['–', 'text-muted'];
   return <span className={`font-bold whitespace-nowrap ${color} ${className}`}>{text}</span>;
 }
+
+/** Previous / Next with "Page 2 of 5". `page` is zero-based; renders nothing for a single page. */
+export function Pager({ page, pages, onChange }) {
+  if (pages <= 1) return null;
+  return (
+    <nav aria-label="Pagination" className="flex items-center justify-between gap-3">
+      <button className="btn" disabled={page <= 0} onClick={() => onChange(page - 1)}>
+        Previous
+      </button>
+      <span className="text-xs text-muted">
+        Page {page + 1} of {pages}
+      </span>
+      <button className="btn" disabled={page >= pages - 1} onClick={() => onChange(page + 1)}>
+        Next
+      </button>
+    </nav>
+  );
+}

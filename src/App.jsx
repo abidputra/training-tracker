@@ -114,8 +114,14 @@ export default function App() {
       setNotice({ type: 'error', text: `Refresh failed: ${e.message}` });
     }
   }, [reloadActivities, reload, reloadDays, reloadHistory]);
-  const { pull, refreshing, ready } = usePullToRefresh(refresh);
   const { syncing, sync } = useSyncAll(connections, setNotice, refresh);
+  // Pulling down syncs with Garmin too, not only reloads what is already saved; when a sync was
+  // skipped (nothing connected, one already running) it still reloads.
+  const pullRefresh = useCallback(async () => {
+    const ran = Object.keys(connections).length > 0 && (await sync());
+    if (!ran) await refresh();
+  }, [sync, refresh, connections]);
+  const { pull, refreshing, ready } = usePullToRefresh(pullRefresh);
   // ISO timestamps sort as text, so the last one is the newest.
   const lastSynced = Object.values(connections).map((c) => c.last_synced_at).filter(Boolean).sort().pop();
   const stravaHandled = useRef(false); // StrictMode runs effects twice in dev

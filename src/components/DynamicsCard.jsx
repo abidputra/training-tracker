@@ -8,7 +8,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { DEFAULT_RANGE, RANGES, filterRange, rolling, windowAvg } from '../lib/analysis.js';
-import { dayLabel } from '../lib/glance.js';
+import { dayLabel, latest } from '../lib/glance.js';
 import Drawer from './Drawer.jsx';
 import LineChart from './LineChart.jsx';
 import { Note, RangePills, SectionHead } from './ui.jsx';
@@ -169,7 +169,9 @@ export default function DynamicsCard({ runs, days = [] }) {
   const [openKey, setOpenKey] = useState(null);
   const close = useCallback(() => setOpenKey(null), []);
   const anchor = runs.length ? runs[runs.length - 1].t : 0;
-  const latestVo2 = [...runs].reverse().find((r) => r.vo2max != null)?.vo2max;
+  // Garmin's current figure (daily wellness row, one decimal); before it has synced, the value
+  // stored on the latest activity, which Garmin rounds and updates later
+  const latestVo2 = latest(days, 'vo2max')?.vo2max ?? [...runs].reverse().find((r) => r.vo2max != null)?.vo2max;
   const weight = useMemo(() => weightSummary(days), [days]);
 
   const rows = METRICS.map((m) => {
