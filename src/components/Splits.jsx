@@ -1,18 +1,44 @@
 /**
- * Km splits and Laps of a run (lists from useSplits). Each row has a 16-dot pace
- * bar: faster = more dots (7:00 /km fills it, 11:00 /km leaves one). The latest km
+ * Km splits and Laps of a run (lists from useSplits). Each row has a dot pace bar:
+ * faster = more dots (7:00 /km fills it, 11:00 /km leaves one). The bar fills its column
+ * and the dots keep a steady size, so a wide column gets more dots, not bigger ones. The latest km
  * and the hard (interval) laps are drawn in the accent.
  *
  * Phone: km splits as one table, laps as cards. Desktop: both as tables.
  */
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { meter } from '../lib/dots.js';
 import { duration, paceSec } from '../lib/format.js';
 import { lapLabels, paceLit } from '../lib/paceBar.js';
 import DotGrid from './DotGrid.jsx';
 
 const paceOf = (r) => r.time / (r.dist / 1000);
-const bar = (pace, accent) => meter(paceLit(pace), 16, { lit: accent ? 'acc' : 'on' });
+const DOT_PX = 14; // the size one dot is aimed at
 const hrOf = (r) => (r.hr ? String(r.hr) : '–');
+
+/** Pace bar that fits its column: as many dots as fit at DOT_PX, lit in proportion to the pace. */
+function PaceBar({ pace, accent, label }) {
+  const ref = useRef(null);
+  const [n, setN] = useState(null); // unknown until measured (before the first paint)
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const fit = () => setN(Math.max(12, Math.min(60, Math.round(el.clientWidth / DOT_PX))));
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const grid = useMemo(
+    () => n && meter(Math.max(1, Math.round((paceLit(pace) / 16) * n)), n, { lit: accent ? 'acc' : 'on' }),
+    [n, pace, accent],
+  );
+  return (
+    <div ref={ref} className="w-full">
+      {grid && <DotGrid grid={grid} label={label} className="w-full" />}
+    </div>
+  );
+}
 
 const Title = ({ children, note }) => (
   <div className="flex items-baseline justify-between gap-2">
@@ -49,7 +75,7 @@ export function KmSplits({ splits }) {
             className={`grid ${cols} min-h-12 items-center border-b border-dotted border-line text-[13px] last:border-b-0 lg:min-h-[52px] lg:text-sm`}
           >
             <span>{k.n}</span>
-            <DotGrid grid={bar(paceOf(k), i === splits.length - 1)} label={`${paceSec(paceOf(k))} per km`} className="w-full" />
+            <PaceBar pace={paceOf(k)} accent={i === splits.length - 1} label={`${paceSec(paceOf(k))} per km`} />
             <span className="text-right font-bold tabular-nums">{paceSec(paceOf(k))}</span>
             <span className="text-right text-[#b5b5b5] tabular-nums">{hrOf(k)}</span>
           </div>
@@ -89,7 +115,7 @@ export function Laps({ laps }) {
                 </span>
                 <span className="text-xs text-muted">{type}</span>
               </div>
-              <DotGrid grid={bar(pace, l.intensity === 'INTERVAL')} label={`${paceSec(pace)} per km`} className="w-full" />
+              <PaceBar pace={pace} accent={l.intensity === 'INTERVAL'} label={`${paceSec(pace)} per km`} />
               <div className="grid grid-cols-4 gap-2 text-[13px]">
                 {[
                   ['Dist', `${(l.dist / 1000).toFixed(2)} km`],
@@ -131,7 +157,7 @@ export function Laps({ laps }) {
               </div>
               <span className="text-right tabular-nums">{(l.dist / 1000).toFixed(2)} km</span>
               <span className="text-right tabular-nums">{duration(l.time)}</span>
-              <DotGrid grid={bar(pace, l.intensity === 'INTERVAL')} label={`${paceSec(pace)} per km`} className="w-full" />
+              <PaceBar pace={pace} accent={l.intensity === 'INTERVAL'} label={`${paceSec(pace)} per km`} />
               <span className="text-right font-bold tabular-nums">{paceSec(pace)}</span>
               <span className="text-right text-[#b5b5b5] tabular-nums">{hrOf(l)}</span>
             </div>
