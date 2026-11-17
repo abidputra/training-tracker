@@ -7,7 +7,7 @@
  * `assets` come from lib/shareArt.js. The preview IS the export: the same canvas,
  * scaled down by CSS.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { assetBlob, currentAccent, loadShareFonts, paintAsset } from '../lib/shareArt.js';
 import { zip } from '../lib/zip.js';
 import Drawer from './Drawer.jsx';
@@ -40,7 +40,12 @@ export default function ShareDialog({ open, onClose, assets, fileBase }) {
   // starts the moment it appears, not at the first render when it is still missing.
   const [canvasEl, setCanvasEl] = useState(null);
 
-  const asset = assets.find((a) => a.id === assetId) ?? assets[0];
+  const [variants, setVariants] = useState({}); // per piece: which option of its filter is on ("Interval"...)
+
+  const base = assets.find((a) => a.id === assetId) ?? assets[0];
+  // a piece with a filter (Laps) is redrawn for the chosen option: its size follows the content
+  const option = base?.filter ? (base.filter.options.includes(variants[base.id]) ? variants[base.id] : 'All') : null;
+  const asset = useMemo(() => (base?.filter ? { ...base, ...base.filter.make(option) } : base), [base, option]);
   const solid = bg === 'solid';
 
   // Draw the preview whenever the piece or the background changes (or the dialog opens):
@@ -62,7 +67,8 @@ export default function ShareDialog({ open, onClose, assets, fileBase }) {
 
   if (!asset) return null;
 
-  const fileName = (s) => `${fileBase}-${asset.id}-${s ? 'solid' : 'transparent'}.png`;
+  const variantSlug = option && option !== 'All' ? `-${slug(option)}` : '';
+  const fileName = (s) => `${fileBase}-${asset.id}${variantSlug}-${s ? 'solid' : 'transparent'}.png`;
   const blobFor = async (s) => {
     await loadShareFonts();
     return assetBlob(asset, { solid: s, accent: currentAccent() });
@@ -90,7 +96,7 @@ export default function ShareDialog({ open, onClose, assets, fileBase }) {
           { name: fileName(false), data: new Uint8Array(await t.arrayBuffer()) },
           { name: fileName(true), data: new Uint8Array(await s.arrayBuffer()) },
         ];
-        save(new Blob([zip(files)], { type: 'application/zip' }), `${fileBase}-${asset.id}.zip`);
+        save(new Blob([zip(files)], { type: 'application/zip' }), `${fileBase}-${asset.id}${variantSlug}.zip`);
       } else {
         // phones: two separate downloads (a zip is awkward to open there)
         save(t, fileName(false));
@@ -136,6 +142,22 @@ export default function ShareDialog({ open, onClose, assets, fileBase }) {
           >
             <canvas ref={setCanvasEl} className="block h-auto max-h-full w-auto max-w-full" />
           </div>
+          {base.filter && (
+            <div role="group" aria-label={base.filter.label} className="order-2 flex flex-wrap gap-2 lg:order-none">
+              {base.filter.options.map((o) => (
+                <button
+                  key={o}
+                  aria-pressed={o === option}
+                  onClick={() => setVariants((v) => ({ ...v, [base.id]: o }))}
+                  className={`min-h-11 rounded-full border px-[18px] text-[13px] ${
+                    o === option ? 'border-accent bg-accent font-bold text-black' : 'border-line-strong text-white'
+                  }`}
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="order-3 m-0 text-xs leading-relaxed text-[#b5b5b5] lg:order-none">
             {NOTES[bg]} Exports at {asset.size[0]} × {asset.size[1]} px.
           </p>
@@ -169,7 +191,7 @@ export default function ShareDialog({ open, onClose, assets, fileBase }) {
             {/* phone: a row of cards; desktop: a list */}
             <div role="group" aria-label="Asset" className="no-scrollbar -mx-5 flex flex-none gap-2 overflow-x-auto px-5 pb-1 lg:mx-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:p-0">
               {assets.map((a) => {
-                const on = a.id === asset.id;
+                const on = a.id === base.id;
                 return (
                   <button
                     key={a.id}

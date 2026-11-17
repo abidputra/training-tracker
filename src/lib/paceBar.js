@@ -18,3 +18,24 @@ export function lapLabels(l) {
   const type = l.trigger === 'MANUAL' ? 'Manual' : WORKOUT.has(l.intensity) ? 'Workout' : 'Auto';
   return { name, type };
 }
+
+/** Distinct lap names in the order they first appear: ["Warm-up", "Interval", "Recovery", "Cool-down"]. */
+export const lapNames = (laps) => [...new Set(laps.map((l) => lapLabels(l).name))];
+
+/**
+ * Totals of a set of laps (all of them, or one type): distance in m and time in s are summed,
+ * pace (s/km) is time over distance, and heart rate is the average weighted by lap time
+ * (null when no lap has one).
+ */
+export function lapTotal(laps) {
+  const dist = laps.reduce((a, l) => a + l.dist, 0);
+  const time = laps.reduce((a, l) => a + l.time, 0);
+  const withHr = laps.filter((l) => l.hr);
+  const hrTime = withHr.reduce((a, l) => a + l.time, 0);
+  return {
+    dist,
+    time,
+    pace: dist > 0 ? time / (dist / 1000) : null,
+    hr: hrTime > 0 ? Math.round(withHr.reduce((a, l) => a + l.hr * l.time, 0) / hrTime) : null,
+  };
+}

@@ -14,8 +14,8 @@
  */
 import { body, meter, route as routeGrid } from './dots.js';
 import { muscleLevels } from './muscles.js';
-import { paceLit } from './paceBar.js';
-import { paceSec } from './format.js';
+import { lapTotal, paceLit } from './paceBar.js';
+import { duration, paceSec } from './format.js';
 
 const SQUARE = [1080, 1080];
 const CARD = [1080, 1350];
@@ -134,7 +134,7 @@ function drawMap(ctx, w, h, pal, grid, share = 0.76) {
   drawGrid(ctx, grid, (w - width) / 2, (h - height) / 2, width, pal);
 }
 
-/** Title + date, the map, then three big numbers (1080 x 1350). */
+/** Title + date, the map, then the big numbers: three in a row, or four in two rows (1080 x 1350). */
 function drawSummary(ctx, w, h, pal, { title, date, grid, mapShare, stats }) {
   ctx.fillStyle = '#fff';
   ctx.textBaseline = 'alphabetic';
@@ -149,6 +149,27 @@ function drawSummary(ctx, w, h, pal, { title, date, grid, mapShare, stats }) {
     const cell = width / grid.cols;
     const height = Math.ceil(grid.cells.length / grid.cols) * cell;
     drawGrid(ctx, grid, (w - width) / 2, 250 + (560 - height) / 2, width, pal);
+  }
+
+  if (stats.length === 4) {
+    // four numbers (a run with heart rate): two columns, two rows
+    const colW2 = (w - 120) / 2;
+    const size = Math.min(...stats.map((s) => fit(ctx, (z) => DOTO(900, z), s.value, 130, colW2 - 20)));
+    stats.forEach((s, i) => {
+      const cx = 60 + colW2 * (i % 2) + colW2 / 2;
+      const top = 800 + Math.floor(i / 2) * 270;
+      ctx.fillStyle = '#fff';
+      ctx.font = MONO(400, 26);
+      spaced(ctx, s.label.toUpperCase(), cx, top, 4, 'center');
+      ctx.font = DOTO(900, size);
+      ctx.fillStyle = s.hot ? pal.accent : '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.value, cx, top + 40 + size);
+      ctx.fillStyle = '#fff';
+      ctx.font = MONO(400, 28);
+      ctx.fillText(s.unit, cx, top + 40 + size + 50);
+    });
+    return;
   }
 
   // The numbers share one size (the widest one decides it), so a long value such as a time
@@ -196,8 +217,12 @@ function drawStats(ctx, w, h, pal, { stats }) {
   });
 }
 
-/** Km splits / laps: label, distance, pace bar, pace, heart rate (1080 x 1350). */
-function drawTable(ctx, w, h, pal, { title, context, rows }) {
+/**
+ * Km splits / laps: label, distance, pace bar, pace, heart rate. Splits fill 1080 x 1350. Laps pass
+ * `rowH`, `total` and `foot`: rows keep a fixed height, a total row closes the table and the canvas
+ * height was sized to the content, so a workout with two laps has no empty gap above the footer.
+ */
+function drawTable(ctx, w, h, pal, { title, context, rows, total, foot = 'Pace /km · heart rate bpm', rowH: fixedRowH }) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#fff';
   ctx.font = DOTO(900, 58);
@@ -211,30 +236,39 @@ function drawTable(ctx, w, h, pal, { title, context, rows }) {
 
   const top = 214;
   const bottom = h - 110;
-  const rowH = Math.min(84, Math.floor((bottom - top) / Math.max(rows.length, 1)));
+  const rowH = fixedRowH ?? Math.min(84, Math.floor((bottom - top) / Math.max(rows.length, 1)));
   const font = rowH >= 60 ? 28 : 24;
   const barX = 520;
   const barW = 300;
-  rows.forEach((r, i) => {
-    const mid = top + i * rowH + rowH / 2;
+  const drawRow = (r, mid, bold, litKind) => {
     ctx.fillStyle = '#fff';
-    ctx.font = MONO(400, font);
+    ctx.font = MONO(bold ? 700 : 400, font);
     ctx.textAlign = 'left';
     ctx.fillText(r.a, 60, mid + font * 0.35);
     ctx.fillText(r.mid, 330, mid + font * 0.35);
-    const grid = meter(paceLit(r.paceSec), 16, { lit: r.hot ? 'acc' : 'on' });
+    const grid = meter(paceLit(r.paceSec), 16, { lit: litKind });
     drawGrid(ctx, grid, barX, mid - barW / 16 / 2, barW, pal);
     ctx.fillStyle = '#fff'; // drawGrid leaves the last dot colour behind
     ctx.font = MONO(700, font);
     ctx.textAlign = 'right';
     ctx.fillText(paceSec(r.paceSec), 930, mid + font * 0.35);
-    ctx.font = MONO(400, font);
+    ctx.font = MONO(bold ? 700 : 400, font);
     ctx.fillText(r.hr ?? '–', w - 60, mid + font * 0.35);
-  });
+  };
+  rows.forEach((r, i) => drawRow(r, top + i * rowH + rowH / 2, false, r.hot ? 'acc' : 'on'));
+
+  let footY = h - 60;
+  if (total) {
+    const y = top + rows.length * rowH;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(60, y, w - 120, 2); // the rule above the total
+    drawRow(total, y + rowH / 2, true, 'on');
+    footY = y + rowH + 56;
+  }
   ctx.fillStyle = '#fff';
   ctx.font = MONO(400, 24);
   ctx.textAlign = 'right';
-  ctx.fillText('Pace /km · heart rate bpm', w - 60, h - 60);
+  ctx.fillText(foot, w - 60, footY);
 }
 
 // ---- the pieces an activity offers -----------------------------------------------
@@ -256,11 +290,13 @@ export function runAssets({ title, date, routePoints, splits, laps, stats }) {
     { label: 'Time', ...stats.time },
     { label: stats.paceLabel ?? 'Pace', ...stats.pace },
   ];
+  // the summary card also carries the average heart rate (when there is one): four numbers, two by two
+  const summaryNumbers = stats.hr ? [...numbers, { label: 'Avg HR', ...stats.hr }] : numbers;
   out.push({
     id: 'summary',
     name: 'Summary card',
     size: CARD,
-    draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: map, mapShare: 0.5, stats: numbers }),
+    draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: map, mapShare: stats.hr ? 0.46 : 0.5, stats: summaryNumbers }),
   });
   out.push({ id: 'stats', name: 'Stats only', size: STAT, draw: (c, w, h, p) => drawStats(c, w, h, p, { stats: numbers }) });
   if (splits?.length) {
@@ -274,14 +310,35 @@ export function runAssets({ title, date, routePoints, splits, laps, stats }) {
     out.push({ id: 'splits', name: 'Km splits', size: CARD, draw: (c, w, h, p) => drawTable(c, w, h, p, { title: 'Km splits', context, rows }) });
   }
   if (laps?.length) {
-    const rows = laps.map((l) => ({
-      a: `${l.n} ${l.name}`,
-      mid: km(l.dist),
-      paceSec: l.time / (l.dist / 1000),
-      hr: l.hr ? String(l.hr) : null,
-      hot: l.intensity === 'INTERVAL',
-    }));
-    out.push({ id: 'laps', name: 'Laps', size: CARD, draw: (c, w, h, p) => drawTable(c, w, h, p, { title: 'Laps', context, rows }) });
+    // The laps piece can be limited to one lap type (like the filter on the detail page) and is
+    // sized to its content: a header, a fixed height per row, the total row and the footer.
+    const types = [...new Set(laps.map((l) => l.name))];
+    const make = (option) => {
+      const shown = option === 'All' ? laps : laps.filter((l) => l.name === option);
+      const rows = shown.map((l) => ({
+        a: `${l.n} ${l.name}`,
+        mid: km(l.dist),
+        paceSec: l.time / (l.dist / 1000),
+        hr: l.hr ? String(l.hr) : null,
+        hot: l.intensity === 'INTERVAL',
+      }));
+      const t = lapTotal(shown);
+      const total = { a: `Total ${duration(t.time)}`, mid: km(t.dist), paceSec: t.pace, hr: t.hr ? String(t.hr) : null };
+      const rowH = Math.min(88, Math.floor((1350 - 214 - 96) / (rows.length + 1)));
+      const height = Math.max(540, 214 + (rows.length + 1) * rowH + 96);
+      return {
+        size: [1080, height],
+        draw: (c, w, h, p) =>
+          drawTable(c, w, h, p, { title: 'Laps', context, rows, total, rowH, foot: 'Km and time are totals · pace /km and bpm are averages' }),
+      };
+    };
+    out.push({
+      id: 'laps',
+      name: 'Laps',
+      ...make('All'),
+      // pills in the dialog: which laps to include (only offered when there is more than one type)
+      filter: types.length > 1 ? { label: 'Laps to include', options: ['All', ...types], make } : null,
+    });
   }
   const stat = (id, name, label, s, hot) => ({
     id,
