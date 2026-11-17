@@ -218,9 +218,9 @@ function drawStats(ctx, w, h, pal, { stats }) {
 }
 
 /**
- * Km splits / laps: label, distance, pace bar, pace, heart rate. Splits fill 1080 x 1350. Laps pass
- * `rowH`, `total` and `foot`: rows keep a fixed height, a total row closes the table and the canvas
- * height was sized to the content, so a workout with two laps has no empty gap above the footer.
+ * Km splits / laps: label, distance, pace bar, pace, heart rate. Both pass `rowH`: rows keep a fixed
+ * height and the canvas height was sized to the content, so a short run or a workout with two laps
+ * has no empty gap above the footer. Laps also pass a `total` row and their own `foot`.
  */
 function drawTable(ctx, w, h, pal, { title, context, rows, total, foot = 'Pace /km · heart rate bpm', rowH: fixedRowH }) {
   ctx.textBaseline = 'alphabetic';
@@ -257,7 +257,9 @@ function drawTable(ctx, w, h, pal, { title, context, rows, total, foot = 'Pace /
   };
   rows.forEach((r, i) => drawRow(r, top + i * rowH + rowH / 2, false, r.hot ? 'acc' : 'on'));
 
-  let footY = h - 60;
+  // With a fixed row height the canvas was sized to its content, so the footer sits right under
+  // the last row (or the total); otherwise it is pinned to the bottom edge.
+  let footY = fixedRowH ? top + rows.length * rowH + 56 : h - 60;
   if (total) {
     const y = top + rows.length * rowH;
     ctx.fillStyle = '#fff';
@@ -298,7 +300,7 @@ export function runAssets({ title, date, routePoints, splits, laps, stats }) {
     size: CARD,
     draw: (c, w, h, p) => drawSummary(c, w, h, p, { title, date, grid: map, mapShare: stats.hr ? 0.46 : 0.5, stats: summaryNumbers }),
   });
-  out.push({ id: 'stats', name: 'Stats only', size: STAT, draw: (c, w, h, p) => drawStats(c, w, h, p, { stats: numbers }) });
+  out.push({ id: 'stats', name: 'Stats only', size: STAT, draw: (c, w, h, p) => drawStats(c, w, h, p, { stats: summaryNumbers }) });
   if (splits?.length) {
     const rows = splits.map((k, i) => ({
       a: String(k.n),
@@ -307,7 +309,14 @@ export function runAssets({ title, date, routePoints, splits, laps, stats }) {
       hr: k.hr ? String(k.hr) : null,
       hot: i === splits.length - 1,
     }));
-    out.push({ id: 'splits', name: 'Km splits', size: CARD, draw: (c, w, h, p) => drawTable(c, w, h, p, { title: 'Km splits', context, rows }) });
+    const rowH = Math.min(88, Math.floor((1350 - 214 - 96) / rows.length));
+    const height = Math.max(540, 214 + rows.length * rowH + 96);
+    out.push({
+      id: 'splits',
+      name: 'Km splits',
+      size: [1080, height],
+      draw: (c, w, h, p) => drawTable(c, w, h, p, { title: 'Km splits', context, rows, rowH }),
+    });
   }
   if (laps?.length) {
     // The laps piece can be limited to one lap type (like the filter on the detail page) and is
