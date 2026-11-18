@@ -10,7 +10,7 @@ export default function PredictionCard({ fit, before }) {
       <SectionHead
         n="02"
         title="Race Predictions"
-        note={<span className="hidden lg:inline">▲ faster · ▼ slower · vs 30 days ago</span>}
+        note={<span className="hidden lg:inline">▼ faster · ▲ slower · vs 30 days ago</span>}
       />
 
       {!fit ? (
@@ -44,7 +44,7 @@ export default function PredictionCard({ fit, before }) {
             Based on your best recent effort: {km(fit.run.distance)} in {duration(fit.run.time)} ({shortDate(fit.run.t)}),
             VDOT {fit.vdot.toFixed(1)}. Estimates assume you are trained for the distance, so the half and full
             marathon are the least certain.
-            <span className="lg:hidden"> ▲ faster, ▼ slower, versus 30 days ago.</span>
+            <span className="lg:hidden"> ▼ faster, ▲ slower, versus 30 days ago.</span>
           </Note>
         </div>
       )}

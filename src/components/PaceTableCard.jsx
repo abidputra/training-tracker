@@ -16,7 +16,7 @@ export default function PaceTableCard({ fit, before }) {
       <SectionHead
         n="03"
         title="Training Paces"
-        note={<span className="hidden lg:inline">▲ faster · ▼ slower · vs 30 days ago</span>}
+        note={<span className="hidden lg:inline">▼ faster · ▲ slower · vs 30 days ago</span>}
       />
 
       {!fit ? (
@@ -69,7 +69,7 @@ export default function PaceTableCard({ fit, before }) {
             Derived from VDOT {fit.vdot.toFixed(1)}
             {fit.maxHr ? ` and your highest recorded HR (${fit.maxHr} bpm)` : ''}. Treat the HR column as a guide; use
             your own HR zones if you have tested them.
-            <span className="lg:hidden"> 30 D = pace change versus 30 days ago (▲ faster, ▼ slower).</span>
+            <span className="lg:hidden"> 30 D = pace change versus 30 days ago (▼ faster, ▲ slower).</span>
             <span className="hidden lg:inline"> Zones move with your VDOT.</span>
           </Note>
         </div>
