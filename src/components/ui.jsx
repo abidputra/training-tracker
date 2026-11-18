@@ -171,11 +171,14 @@ export const Note = ({ children, className = '' }) => (
 
 export const Empty = ({ children }) => <p className="py-8 text-center text-sm text-muted">{children}</p>;
 
-/** "▲ 0:12" faster (white), "▼ 0:05" slower (accent), "–" unchanged or unknown; from analysis.changeOf. */
+/**
+ * The arrow follows the time or pace: "▼ 0:12" it went down, so faster and better (white); "▲ 0:05" it went up,
+ * so slower and worse (accent); "–" unchanged or unknown. From analysis.changeOf.
+ */
 export function Change({ change, fmt, className = '' }) {
   const { dir, secs } = change;
   const [text, color] =
-    dir === 'faster' ? [`▲ ${fmt(secs)}`, 'text-white'] : dir === 'slower' ? [`▼ ${fmt(secs)}`, 'text-accent'] : ['–', 'text-muted'];
+    dir === 'faster' ? [`▼ ${fmt(secs)}`, 'text-white'] : dir === 'slower' ? [`▲ ${fmt(secs)}`, 'text-accent'] : ['–', 'text-muted'];
   return <span className={`font-bold whitespace-nowrap ${color} ${className}`}>{text}</span>;
 }
 
