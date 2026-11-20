@@ -4,7 +4,8 @@ import { duration, paceSec } from '../lib/format.js';
 import { Change, Note, SectionHead } from './ui.jsx';
 
 // phone: zone, pace, HR, change. desktop: wider, with the unit spelled out.
-const PHONE = 'grid-cols-[80px_74px_64px_minmax(0,1fr)]';
+// narrow phones (under 380px) get tighter columns and 12px text so the change column is never cut off
+const PHONE = 'grid-cols-[68px_66px_52px_minmax(0,1fr)] min-[380px]:grid-cols-[80px_74px_64px_minmax(0,1fr)]';
 const DESK = 'lg:grid-cols-[minmax(130px,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_72px]';
 
 // A zone's change is how its middle pace moved since 30 days ago.
@@ -23,7 +24,7 @@ export default function PaceTableCard({ fit, before }) {
         <Note>Needs at least one run of 3 km or more in the last 90 days.</Note>
       ) : (
         <div className="flex flex-col gap-3.5">
-          <div className="card px-5 py-4 lg:border-0 lg:p-0">
+          <div className="card px-3.5 py-4 min-[380px]:px-5 lg:border-0 lg:p-0">
             <div className={`rule grid ${PHONE} gap-2 pb-2.5 text-xs tracking-[0.12em] text-muted lg:hidden`}>
               <span>ZONE</span>
               <span>PACE /KM</span>
@@ -37,22 +38,22 @@ export default function PaceTableCard({ fit, before }) {
               return (
                 <div key={z.key}>
                   {/* phone: four-column table */}
-                  <div className={`grid ${PHONE} items-center gap-2 border-b border-dotted border-line py-3.5 text-[13px] lg:hidden`}>
+                  <div className={`grid ${PHONE} items-center gap-2 border-b border-dotted border-line py-3.5 text-xs min-[380px]:text-[13px] lg:hidden`}>
                     <span>{z.key}</span>
                     <span>{pace}</span>
                     <span className="whitespace-nowrap text-muted">{hr}</span>
                     <Change change={change} fmt={duration} className="text-right text-xs" />
                   </div>
                   {/* desktop: numbered zone, pace, HR and change */}
-                  <div className={`rule hidden items-center gap-x-4 gap-y-2 py-3 lg:grid ${DESK}`}>
+                  <div className={`rule hidden items-center gap-x-3 gap-y-2 py-3 lg:grid xl:gap-x-4 ${DESK}`}>
                     <div className="flex items-baseline gap-3">
                       <span className="num text-[28px]">{String(i + 1).padStart(2, '0')}</span>
                       <span className="eyebrow">{z.key}</span>
                     </div>
-                    <div className="text-sm whitespace-nowrap">
+                    <div className="text-[13px] whitespace-nowrap xl:text-sm">
                       {pace} <span className="text-xs text-muted">/KM</span>
                     </div>
-                    <div className="text-sm whitespace-nowrap text-muted">
+                    <div className="text-[13px] whitespace-nowrap text-muted xl:text-sm">
                       {hr && (
                         <>
                           {hr} <span className="text-xs">bpm</span>

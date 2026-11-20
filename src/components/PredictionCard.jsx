@@ -31,10 +31,13 @@ export default function PredictionCard({ fit, before }) {
                     <span className="text-xs text-muted">{pace}</span>
                   </div>
                   <span className="hidden w-40 text-sm tracking-[0.12em] uppercase lg:inline">{r.key}</span>
-                  <span className={`num flex-none text-[28px] lg:w-[206px] lg:text-5xl ${last ? 'text-accent' : ''}`}><Count text={duration(t)} /></span>
-                  <div className="flex w-20 flex-none flex-col items-end gap-1.5 text-right lg:gap-1">
-                    <Change change={change} fmt={duration} className="text-xs lg:text-sm" />
-                    <span className="hidden text-xs text-muted lg:inline">{pace}</span>
+                  {/* phone: the time with its change; under 380px the change drops below the time so the name keeps its room. Desktop: three separate columns. */}
+                  <div className="flex flex-none flex-col items-end gap-1 min-[380px]:flex-row min-[380px]:items-center min-[380px]:gap-2.5 lg:contents">
+                    <span className={`num flex-none text-[26px] min-[380px]:text-[28px] lg:w-[206px] lg:text-5xl ${last ? 'text-accent' : ''}`}><Count text={duration(t)} /></span>
+                    <div className="flex flex-none flex-col items-end gap-1.5 text-right min-[380px]:w-20 lg:w-20 lg:gap-1">
+                      <Change change={change} fmt={duration} className="text-xs lg:text-sm" />
+                      <span className="hidden text-xs text-muted lg:inline">{pace}</span>
+                    </div>
                   </div>
                 </div>
               );
