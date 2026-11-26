@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { garminApi } from '../lib/api.js';
 import { supabase } from '../lib/supabase.js';
 
-async function loadSplits(activityId) {
+async function loadSplits(activityId, provider) {
   const { data, error } = await supabase
     .from('activity_splits')
     .select('laps,splits')
@@ -18,10 +18,10 @@ async function loadSplits(activityId) {
     .maybeSingle();
   if (error) throw error;
   if (data) return data;
-  return garminApi(`/garmin/activities/${activityId}/splits`, { method: 'GET' });
+  return garminApi(`/${provider === 'strava' ? 'strava' : 'garmin'}/activities/${activityId}/splits`, { method: 'GET' });
 }
 
-export function useSplits(activityId, enabled) {
+export function useSplits(activityId, enabled, provider = 'garmin') {
   const [state, setState] = useState({ status: 'loading', laps: [], splits: [], error: null });
   const [attempt, setAttempt] = useState(0);
 
@@ -29,7 +29,7 @@ export function useSplits(activityId, enabled) {
     if (!enabled) return undefined;
     let cancelled = false;
     setState({ status: 'loading', laps: [], splits: [], error: null });
-    loadSplits(activityId)
+    loadSplits(activityId, provider)
       .then((res) => {
         if (cancelled) return;
         const laps = Array.isArray(res.laps) ? res.laps : [];
@@ -42,7 +42,7 @@ export function useSplits(activityId, enabled) {
     return () => {
       cancelled = true;
     };
-  }, [activityId, enabled, attempt]);
+  }, [activityId, enabled, provider, attempt]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
   return { ...state, retry };

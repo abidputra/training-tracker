@@ -338,6 +338,44 @@ def strava_activity_route(activity_id: str, user_id: str = Depends(db.current_us
     return {"points": points}
 
 
+@app.get("/strava/activities/{activity_id}/splits")
+def strava_activity_splits(activity_id: str, user_id: str = Depends(db.current_user_id)) -> dict:
+    """
+    Laps and per-km splits of one of the caller's Strava activities, in the same shape as the
+    Garmin endpoint. Fetched from Strava once, then answered from `activity_splits`.
+    """
+    if not _UUID.fullmatch(activity_id):
+        raise HTTPException(404, "Activity not found.")
+    acts = db.select(
+        "activities",
+        {"id": f"eq.{activity_id}", "user_id": f"eq.{user_id}", "select": "id,provider,external_id"},
+    )
+    if not acts or acts[0]["provider"] != "strava":
+        raise HTTPException(404, "Activity not found.")
+
+    cached = db.select("activity_splits", {"activity_id": f"eq.{activity_id}", "select": "laps,splits"})
+    if cached:
+        return {"laps": cached[0]["laps"], "splits": cached[0]["splits"]}
+
+    conn = _strava_connection(user_id)
+    try:
+        result = strava.fetch_splits(conn, acts[0]["external_id"])
+    except strava.StravaAuthError:
+        db.patch("connections", {"id": f"eq.{conn['id']}"}, {"status": "needs_reauth"})
+        raise HTTPException(409, "Strava authorization expired. Please reconnect.")
+    except strava.StravaRateLimited:
+        raise HTTPException(429, "Strava is rate limiting requests. Try again in a few minutes.")
+    except httpx.HTTPError:
+        raise HTTPException(502, "Could not reach Strava. Try again later.")
+
+    db.upsert(
+        "activity_splits",
+        {"activity_id": activity_id, "user_id": user_id, "laps": result["laps"], "splits": result["splits"]},
+        on_conflict="activity_id",
+    )
+    return result
+
+
 @app.get("/garmin/activities/{activity_id}/splits")
 def activity_splits(activity_id: str, user_id: str = Depends(db.current_user_id)) -> dict:
     """

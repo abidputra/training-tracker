@@ -258,6 +258,57 @@ def fetch_route(conn: dict, external_id: str) -> list[list]:
     return gpx.thin(points, gpx.MAX_POINTS)
 
 
+def _split_rows(items, keep_single: bool) -> list[dict]:
+    """Strava laps / splits_metric -> [{n, intensity, trigger, dist, time, hr}] like splits.py gives for Garmin."""
+    out: list[dict] = []
+    for i, it in enumerate((items or [])[:300], start=1):
+        if not isinstance(it, dict):
+            continue
+        dist = it.get("distance")
+        time = it.get("moving_time") or it.get("elapsed_time")
+        if not isinstance(dist, (int, float)) or not isinstance(time, (int, float)) or dist <= 0 or time <= 0:
+            continue
+        hr = it.get("average_heartrate")
+        out.append(
+            {
+                "n": i,
+                "intensity": None,  # Strava has no warm-up / interval / recovery labels
+                "trigger": None,
+                "dist": round(float(dist), 1),
+                "time": round(float(time), 1),
+                "hr": round(hr) if isinstance(hr, (int, float)) and hr > 0 else None,
+            }
+        )
+    # one lap that is just the whole run says nothing the summary does not
+    return out if keep_single or len(out) > 1 else []
+
+
+def fetch_splits(conn: dict, external_id: str) -> dict:
+    """
+    Laps and per-km splits of ONE Strava activity from its detailed record (one request):
+    {"laps": [...], "splits": [...]}, the same shape as Garmin's. Both empty when Strava has none.
+    Raises StravaAuthError / StravaRateLimited for the caller to map to HTTP.
+    """
+    token = _access_token(conn["id"])
+    r = httpx.get(
+        f"{API}/activities/{external_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=30,
+    )
+    if r.status_code == 404:
+        return {"laps": [], "splits": []}
+    if r.status_code == 429:
+        raise StravaRateLimited()
+    if r.status_code == 401:
+        raise StravaAuthError("Strava rejected the access token")
+    r.raise_for_status()
+    a = r.json() or {}
+    return {
+        "laps": _split_rows(a.get("laps"), keep_single=False),
+        "splits": _split_rows(a.get("splits_metric"), keep_single=True),
+    }
+
+
 def sync_connection(conn: dict, everything: bool = False, limit: int = 50) -> dict:
     """
     Imports the latest `limit` activities, or the whole history with

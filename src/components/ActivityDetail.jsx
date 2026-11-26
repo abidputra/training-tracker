@@ -65,7 +65,7 @@ export default function ActivityDetail({ activity, onBack }) {
   const wantsRoute = routeExpected(activity, raw);
   const route = useRoute(activity.id, wantsRoute, activity.provider);
   const wantsSplits = splitsExpected(activity);
-  const splits = useSplits(activity.id, wantsSplits);
+  const splits = useSplits(activity.id, wantsSplits, activity.provider);
 
   const headline = useMemo(() => headlineStats(activity), [activity]);
   // the "main" number in the accent: distance for a run, volume for a workout
