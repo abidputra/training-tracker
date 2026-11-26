@@ -47,12 +47,13 @@ export function activityKind(activity) {
  * GPS fix, so treadmill runs, pool swims and the like have none and get no Route section.
  */
 export function routeExpected(activity, raw) {
+  if (activityKind(activity) !== 'distance' || /treadmill|indoor|virtual/i.test(activity.sport_type ?? '')) return false;
+  if (activity.provider === 'strava') {
+    // Strava: start_latlng is [lat, lng], empty for indoor / manual activities
+    return !raw?.trainer && !raw?.manual && Array.isArray(raw?.start_latlng) && raw.start_latlng.length === 2;
+  }
   return (
-    activity.provider === 'garmin' &&
-    activityKind(activity) === 'distance' &&
-    !/treadmill|indoor|virtual/i.test(activity.sport_type ?? '') &&
-    Number.isFinite(raw?.startLatitude) &&
-    Number.isFinite(raw?.startLongitude)
+    activity.provider === 'garmin' && Number.isFinite(raw?.startLatitude) && Number.isFinite(raw?.startLongitude)
   );
 }
 

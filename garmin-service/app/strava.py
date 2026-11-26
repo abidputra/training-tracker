@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from . import crypto, db
+from . import crypto, db, gpx
 from .settings import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET
 
 log = logging.getLogger("strava.sync")
@@ -214,6 +214,48 @@ def _list_page(token: str, page: int, per_page: int) -> list[dict]:
         raise StravaAuthError("Strava rejected the access token")
     r.raise_for_status()
     return r.json()
+
+
+def fetch_route(conn: dict, external_id: str) -> list[list]:
+    """
+    GPS track of ONE Strava activity from its streams, as [[lat, lon, elevation_or_None], ...]
+    thinned like the Garmin tracks ([] when the activity has no GPS, e.g. a treadmill run).
+    Raises StravaAuthError / StravaRateLimited for the caller to map to HTTP.
+    """
+    token = _access_token(conn["id"])
+    r = httpx.get(
+        f"{API}/activities/{external_id}/streams",
+        params={"keys": "latlng,altitude", "key_by_type": "true"},
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=30,
+    )
+    if r.status_code == 404:
+        return []  # no streams for this activity
+    if r.status_code == 429:
+        raise StravaRateLimited()
+    if r.status_code == 401:
+        raise StravaAuthError("Strava rejected the access token")
+    r.raise_for_status()
+    streams = r.json() or {}
+    latlng = (streams.get("latlng") or {}).get("data") or []
+    altitude = (streams.get("altitude") or {}).get("data") or []
+
+    points: list[list] = []
+    for i, ll in enumerate(latlng):
+        try:
+            lat, lon = float(ll[0]), float(ll[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            continue
+        ele = None
+        if i < len(altitude):
+            try:
+                ele = round(float(altitude[i]), 1)
+            except (TypeError, ValueError):
+                pass
+        points.append([round(lat, 5), round(lon, 5), ele])
+    return gpx.thin(points, gpx.MAX_POINTS)
 
 
 def sync_connection(conn: dict, everything: bool = False, limit: int = 50) -> dict:

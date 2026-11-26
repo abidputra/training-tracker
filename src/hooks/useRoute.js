@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { garminApi } from '../lib/api.js';
 import { supabase } from '../lib/supabase.js';
 
-async function loadRoute(activityId) {
+async function loadRoute(activityId, provider) {
   const { data, error } = await supabase
     .from('activity_routes')
     .select('points')
@@ -17,11 +17,11 @@ async function loadRoute(activityId) {
     .maybeSingle();
   if (error) throw error;
   if (data) return data.points;
-  const res = await garminApi(`/garmin/activities/${activityId}/route`, { method: 'GET' });
+  const res = await garminApi(`/${provider === 'strava' ? 'strava' : 'garmin'}/activities/${activityId}/route`, { method: 'GET' });
   return res.points;
 }
 
-export function useRoute(activityId, enabled) {
+export function useRoute(activityId, enabled, provider = 'garmin') {
   // not enabled = no GPS expected: 'none', so neither the page nor the share dialog waits for a map
   const [state, setState] = useState({ status: enabled ? 'loading' : 'none', points: [], error: null });
   const [attempt, setAttempt] = useState(0);
@@ -33,7 +33,7 @@ export function useRoute(activityId, enabled) {
     }
     let cancelled = false;
     setState({ status: 'loading', points: [], error: null });
-    loadRoute(activityId)
+    loadRoute(activityId, provider)
       .then((points) => {
         if (cancelled) return;
         const list = Array.isArray(points) ? points : [];
@@ -45,7 +45,7 @@ export function useRoute(activityId, enabled) {
     return () => {
       cancelled = true;
     };
-  }, [activityId, enabled, attempt]);
+  }, [activityId, enabled, provider, attempt]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
   return { ...state, retry };

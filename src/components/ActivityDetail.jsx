@@ -63,7 +63,7 @@ export default function ActivityDetail({ activity, onBack }) {
   const hasMuscles = Object.keys(muscles.scores).length > 0;
   const isDistance = activityKind(activity) === 'distance';
   const wantsRoute = routeExpected(activity, raw);
-  const route = useRoute(activity.id, wantsRoute);
+  const route = useRoute(activity.id, wantsRoute, activity.provider);
   const wantsSplits = splitsExpected(activity);
   const splits = useSplits(activity.id, wantsSplits);
 
