@@ -370,6 +370,7 @@ export default function App() {
           onNotice={setNotice}
           onProfileChanged={reloadProfile}
           onConnectionsChanged={reload}
+          onSynced={refresh}
         />
       ) : (
         <>

@@ -240,7 +240,7 @@ function PasswordForm({ email, onNotice }) {
   );
 }
 
-export default function Settings({ session, profile, connections, onBack, onNotice, onProfileChanged, onConnectionsChanged }) {
+export default function Settings({ session, profile, connections, onBack, onNotice, onProfileChanged, onConnectionsChanged, onSynced }) {
   const email = session.user.email;
   const userId = session.user.id;
 
@@ -284,7 +284,7 @@ export default function Settings({ session, profile, connections, onBack, onNoti
       <AccentPicker userId={userId} onNotice={onNotice} onSaved={onProfileChanged} />
 
       {/* Connections has its own card, so it is rendered without a wrapper here. */}
-      <Connections connections={connections} onNotice={onNotice} onChanged={onConnectionsChanged} />
+      <Connections connections={connections} onNotice={onNotice} onChanged={onConnectionsChanged} onSynced={onSynced} />
         </div>
       </div>
     </div>
