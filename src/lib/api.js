@@ -102,13 +102,14 @@ export async function edgeFn(name, body = {}) {
 }
 
 /**
- * Starts Strava OAuth. A random `state` is kept in sessionStorage and checked
- * on return (CSRF protection). We ask for activity:read_all so private
- * activities are included.
+ * Starts Strava OAuth. A random `state` is kept in localStorage and checked
+ * on return (CSRF protection). localStorage, not sessionStorage, so it survives
+ * when an installed PWA returns from Strava in a different browsing context.
+ * We ask for activity:read_all so private activities are included.
  */
 export function startStravaOAuth() {
   const state = crypto.randomUUID();
-  sessionStorage.setItem('strava_oauth_state', state);
+  localStorage.setItem('strava_oauth_state', state);
   const params = new URLSearchParams({
     client_id: import.meta.env.VITE_STRAVA_CLIENT_ID,
     redirect_uri: window.location.origin,

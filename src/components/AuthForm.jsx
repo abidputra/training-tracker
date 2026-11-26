@@ -14,8 +14,9 @@ import PasswordInput from './PasswordInput.jsx';
 
 const input = 'field';
 
-export default function AuthForm() {
-  const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+/** `initialMode` picks the form to open on; `onBack` (when given) adds a link back to the landing page. */
+export default function AuthForm({ initialMode = 'signin', onBack }) {
+  const [mode, setMode] = useState(initialMode); // 'signin' | 'signup'
   const [identifier, setIdentifier] = useState(''); // sign in: email or username
   const [username, setUsername] = useState(''); // sign up
   const [email, setEmail] = useState('');
@@ -161,6 +162,11 @@ export default function AuthForm() {
       >
         {mode === 'signin' ? 'No account? Sign up' : 'Have an account? Sign in'}
       </button>
+      {onBack && (
+        <button onClick={onBack} className="mt-3 self-start text-sm text-muted underline">
+          Back
+        </button>
+      )}
     </div>
   );
 }

@@ -46,7 +46,7 @@ const Busy = ({ loading, children }) => (
   </>
 );
 
-export default function Connections({ connections, onNotice, onChanged }) {
+export default function Connections({ connections, onNotice, onChanged, onSynced }) {
   const [showGarmin, setShowGarmin] = useState(false);
   const [busy, setBusy] = useState(null); // 'garmin-all' | 'garmin-off' | 'strava-all' | 'strava-off'
   const strava = connections.strava;
@@ -66,6 +66,17 @@ export default function Connections({ connections, onNotice, onChanged }) {
     }
   }
 
+  /** Syncs one provider now, then pulls the new rows into the app. */
+  const syncNow = (key, path, name) =>
+    run(
+      key,
+      async () => {
+        await garminApi(path);
+        await onSynced?.();
+      },
+      `${name} synced.`,
+    );
+
   const confirmDisconnect = (name) =>
     window.confirm(`Disconnect ${name}? Its imported activities will be deleted from this app.`);
 
@@ -84,6 +95,14 @@ export default function Connections({ connections, onNotice, onChanged }) {
           </button>
         ) : (
           <div className="flex flex-wrap gap-2">
+            <button
+              disabled={!!busy}
+              className={btnPrimary}
+              title="Fetches your newest Strava activities"
+              onClick={() => syncNow('strava-sync', '/strava/sync', 'Strava')}
+            >
+              <Busy loading={busy === 'strava-sync'}>{busy === 'strava-sync' ? 'Syncing…' : 'Sync now'}</Busy>
+            </button>
             <button
               disabled={!!busy}
               className={btn}
@@ -106,6 +125,7 @@ export default function Connections({ connections, onNotice, onChanged }) {
             </button>
           </div>
         )}
+        <p className="m-0 text-xs tracking-[0.12em] text-muted uppercase">Powered by Strava</p>
       </div>
       )}
 
@@ -122,6 +142,14 @@ export default function Connections({ connections, onNotice, onChanged }) {
               )
             ) : (
               <>
+                <button
+                  disabled={!!busy}
+                  className={btnPrimary}
+                  title="Fetches your newest Garmin activities"
+                  onClick={() => syncNow('garmin-sync', '/garmin/sync', 'Garmin')}
+                >
+                  <Busy loading={busy === 'garmin-sync'}>{busy === 'garmin-sync' ? 'Syncing…' : 'Sync now'}</Busy>
+                </button>
                 <button
                   disabled={!!busy}
                   className={btn}

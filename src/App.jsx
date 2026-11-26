@@ -6,6 +6,8 @@
  *   history  -> Activity History list, reached from the floating menu
  *   settings -> account settings + connections, reached from the profile icon
  *
+ * Signed out: the landing page, then the sign-in / sign-up form (AuthForm) from its buttons.
+ *
  * Also finishes the Strava OAuth round trip: Strava redirects back to
  * "/?code=...&scope=...&state=..."; we verify `state`, send the code to the
  * backend /strava/connect (which holds the client secret), and clean the URL.
@@ -31,6 +33,7 @@ import Dashboard from './components/Dashboard.jsx';
 import ExerciseDetail from './components/ExerciseDetail.jsx';
 import FloatingMenu from './components/FloatingMenu.jsx';
 import GlanceSection from './components/GlanceSection.jsx';
+import Landing from './components/Landing.jsx';
 import OnboardConnect from './components/OnboardConnect.jsx';
 import ProfileMenu from './components/ProfileMenu.jsx';
 import SectionNav from './components/SectionNav.jsx';
@@ -84,6 +87,7 @@ export default function App() {
   const session = useSession();
   const userId = session?.user?.id;
   const [view, setView] = useState('metrics'); // 'metrics' | 'history' | 'settings'
+  const [auth, setAuth] = useState(null); // signed out: null = landing page, else the form to show ('signin' | 'signup')
   const { activities, loading, reload: reloadActivities } = useActivities(userId);
   const { connections, loaded: connectionsLoaded, reload } = useConnections(userId);
   const [onboarding, setOnboarding] = useState(false); // first-run "Connect your app" sheet
@@ -194,8 +198,8 @@ export default function App() {
     stravaHandled.current = true;
     window.history.replaceState({}, '', window.location.pathname); // drop code from the URL
 
-    const expected = sessionStorage.getItem('strava_oauth_state');
-    sessionStorage.removeItem('strava_oauth_state');
+    const expected = localStorage.getItem('strava_oauth_state');
+    localStorage.removeItem('strava_oauth_state');
     if (!expected || state !== expected) {
       setNotice({ type: 'error', text: 'Strava login could not be verified. Please try again.' });
       return;
@@ -217,7 +221,10 @@ export default function App() {
   }, [session, reload]);
 
   if (session === undefined) return null; // still restoring the session
-  if (!session) return <AuthForm />;
+  if (!session) {
+    if (!auth) return <Landing onStart={() => setAuth('signup')} onSignIn={() => setAuth('signin')} />;
+    return <AuthForm key={auth} initialMode={auth} onBack={() => setAuth(null)} />;
+  }
 
   const inSettings = view === 'settings';
   const wide = view === 'metrics' && !sub; // desktop: the full-width dashboard
@@ -363,6 +370,7 @@ export default function App() {
           onNotice={setNotice}
           onProfileChanged={reloadProfile}
           onConnectionsChanged={reload}
+          onSynced={refresh}
         />
       ) : (
         <>
