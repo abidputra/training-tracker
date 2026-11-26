@@ -23,6 +23,7 @@ import {
 import DotGrid, { leaveBar, pickBar } from './DotGrid.jsx';
 import { Empty, Icon, Note, Pager, RangePills, SectionHead } from './ui.jsx';
 import Count from './Count.jsx';
+import GlanceCarousel from './GlanceCarousel.jsx';
 
 const Anchor = ({ id, children }) => (
   <section id={id} className="flex scroll-mt-[calc(var(--top-inset)+4rem)] flex-col gap-3.5">
@@ -35,22 +36,21 @@ const EXERCISES_PER_PAGE = 10;
 const sumOf = (list, f) => list.reduce((a, x) => a + f(x), 0);
 
 /**
- * One glance card, the same on every screen size: label, big number with its unit, a line of
- * context, and optionally a bar chart (hover or tap a bar to read that week). `big` cards (the
- * two charts) are wider and carry a larger number on a phone; the small ones sit in a grid.
+ * One glance card, the same as the running ones: label, big number with its unit, a line of
+ * context, and a bar chart (hover or tap a bar to read that week, where the card supports it).
  */
-function GlanceCard({ label, value, unit, accent, sub, subHot, chart, big, foot, className = '' }) {
+function GlanceCard({ label, value, unit, accent, sub, subHot, chart, foot }) {
   return (
-    <div className={`card flex h-full flex-col justify-between gap-3.5 ${big ? 'p-5' : 'p-4'} lg:gap-5 lg:p-6 ${className}`}>
+    <div className="card flex h-full flex-col gap-3.5 p-5 lg:gap-5 lg:p-6">
       <div className="eyebrow">{label}</div>
-      <div className="flex items-baseline gap-2">
-        <span className={`num leading-[0.9] ${big ? 'text-[64px]' : 'text-[34px]'} lg:text-[72px] ${accent ? 'text-accent' : ''}`}>
+      <div className="flex items-baseline gap-2.5">
+        <span className={`num text-[64px] leading-[0.9] lg:text-[72px] ${accent ? 'text-accent' : ''}`}>
           <Count text={value} />
         </span>
         <span className="text-xs tracking-[0.12em] text-muted uppercase">{unit}</span>
       </div>
-      <div className="flex flex-col gap-2.5">
-        <div className={`text-xs ${subHot ? 'text-accent' : 'text-muted'}`}>{sub}</div>
+      <div className={`text-xs ${subHot ? 'text-accent' : 'text-muted'}`}>{sub}</div>
+      <div className="mt-auto flex flex-col gap-2.5">
         {chart}
         {foot && <div className="text-xs text-muted">{foot}</div>}
       </div>
@@ -58,7 +58,7 @@ function GlanceCard({ label, value, unit, accent, sub, subHot, chart, big, foot,
   );
 }
 
-/** The same six numbers on phone and desktop: two weekly charts, then four summary cards. */
+/** Six cards, laid out like the running ones: a swipeable row with dots on a phone, a grid on desktop. */
 function GlanceCards({ glance, top }) {
   const [sel, setSel] = useState(null); // the week picked on the volume chart
   const [selS, setSelS] = useState(null); // ... and on the sessions chart
@@ -71,59 +71,112 @@ function GlanceCards({ glance, top }) {
   const plural = (n) => `${n} session${n === 1 ? '' : 's'}`;
   const weekSets = sumOf(week.sessions, (s) => s.sets);
 
+  // the four summary cards get a plain weekly chart of their own number
+  const weekAvg = (w, num, den) => {
+    const d = sumOf(w.sessions, den);
+    return d ? sumOf(w.sessions, num) / d : 0;
+  };
+  const plain = (vals) => (vals.some((v) => v > 0) ? <DotGrid grid={bars(vals, 7)} className="w-full lg:max-w-[200px]" /> : null);
+  const setsChart = useMemo(() => plain(weeks.map((w) => sumOf(w.sessions, (s) => s.sets))), [weeks]);
+  const timeChart = useMemo(
+    () => plain(weeks.map((w) => weekAvg(w, (s) => s.time, (s) => (s.time ? 1 : 0)))),
+    [weeks],
+  );
+  const repChart = useMemo(() => plain(weeks.map((w) => weekAvg(w, (s) => s.volume, (s) => s.reps))), [weeks]);
+
   const chartFor = (g, pick, leave) => (
     <DotGrid grid={g} onColumn={(c, how) => pickBar(pick, g.barAt(c), how)} onLeave={leaveBar(leave)} className="w-full lg:max-w-[200px]" />
   );
 
-  return (
-    // desktop: one grid of six cards (the two wrappers below dissolve); phone: a swipeable pair of charts, then a 2 x 2 grid
-    <div className="lg:grid lg:grid-cols-3 lg:gap-4">
-      <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 lg:contents">
-        <div className="w-[min(300px,80%)] shrink-0 snap-start lg:w-auto">
-          <GlanceCard
-            big
-            accent
-            label="Weekly volume"
-            value={kgNum(weeks[hi].v)}
-            unit="kg"
-            sub={sel != null ? `${nameOf(hi)} · ${plural(weeks[hi].n)}` : `This week · ${plural(week.n)} · last week ${kgNum(lastWeek.v)} kg`}
-            subHot={sel != null}
-            chart={chartFor(grid, setSel, setSel)}
-            foot="Mon–Sun, last 8 weeks · tap a bar"
-          />
-        </div>
-        <div className="w-[min(300px,80%)] shrink-0 snap-start lg:w-auto">
-          <GlanceCard
-            big
-            label="Sessions"
-            value={String(weeks[hiS].n)}
-            unit={selS != null ? 'sessions' : 'this week'}
-            sub={selS != null ? nameOf(hiS) : `Last week ${lastWeek.n} · last 30 days ${month.sessions}`}
-            subHot={selS != null}
-            chart={chartFor(gridS, setSelS, setSelS)}
-            foot="Sessions per week, last 8 weeks · tap a bar"
-          />
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-3 lg:contents">
+  const cards = [
+    {
+      key: 'volume',
+      label: 'Weekly volume',
+      node: (
+        <GlanceCard
+          accent
+          label="Weekly volume"
+          value={kgNum(weeks[hi].v)}
+          unit="kg"
+          sub={sel != null ? `${nameOf(hi)} · ${plural(weeks[hi].n)}` : `This week · ${plural(week.n)} · last week ${kgNum(lastWeek.v)} kg`}
+          subHot={sel != null}
+          chart={chartFor(grid, setSel, setSel)}
+          foot="Mon–Sun, last 8 weeks · tap a bar"
+        />
+      ),
+    },
+    {
+      key: 'sessions',
+      label: 'Sessions',
+      node: (
+        <GlanceCard
+          label="Sessions"
+          value={String(weeks[hiS].n)}
+          unit={selS != null ? 'sessions' : 'this week'}
+          sub={selS != null ? nameOf(hiS) : `Last week ${lastWeek.n} · last 30 days ${month.sessions}`}
+          subHot={selS != null}
+          chart={chartFor(gridS, setSelS, setSelS)}
+          foot="Sessions per week, last 8 weeks · tap a bar"
+        />
+      ),
+    },
+    {
+      key: 'sets',
+      label: 'Total sets',
+      node: (
         <GlanceCard
           label="Total sets"
           value={String(weekSets)}
           unit="this week"
           sub={week.n ? `Avg ${(weekSets / week.n).toFixed(1)} per session · ${month.sets} in 30 days` : `${month.sets} in the last 30 days`}
+          chart={setsChart}
+          foot="Sets per week, last 8 weeks"
         />
+      ),
+    },
+    {
+      key: 'top',
+      label: 'Top lift',
+      node: (
         <GlanceCard
           label="Top lift"
           value={top ? kgNum(top.pr) : '–'}
           unit={top ? 'kg' : ''}
           sub={top ? `${top.name} · ${fmtWeek(top.t)}` : 'No weighted lifts yet'}
         />
-        <GlanceCard label="Avg time" value={month.avgTime ? duration(month.avgTime) : '–'} unit="per session" sub="Last 30 days" />
-        <GlanceCard label="Avg per rep" value={month.perRep ? kgNum(month.perRep) : '–'} unit="kg" sub="Last 30 days" />
-      </div>
-    </div>
-  );
+      ),
+    },
+    {
+      key: 'time',
+      label: 'Avg time',
+      node: (
+        <GlanceCard
+          label="Avg time"
+          value={month.avgTime ? duration(month.avgTime) : '–'}
+          unit="per session"
+          sub="Last 30 days"
+          chart={timeChart}
+          foot="Average per week, last 8 weeks"
+        />
+      ),
+    },
+    {
+      key: 'rep',
+      label: 'Avg per rep',
+      node: (
+        <GlanceCard
+          label="Avg per rep"
+          value={month.perRep ? kgNum(month.perRep) : '–'}
+          unit="kg"
+          sub="Last 30 days"
+          chart={repChart}
+          foot="Average per week, last 8 weeks"
+        />
+      ),
+    },
+  ];
+
+  return <GlanceCarousel items={cards} cols="lg:grid-cols-3" />;
 }
 
 export function WeeklyChart({ title, weeks, get, fmt, unit, note }) {
@@ -231,7 +284,7 @@ export default function StrengthMetrics({ sessions, loading, error, onRetry, onE
   return (
     <div className="flex flex-col gap-8 lg:gap-14">
       <Anchor id="glance">
-        <SectionHead n="01" title="At a Glance" small />
+        <SectionHead n="01" title="At a Glance" />
         <GlanceCards glance={glance} top={top} />
       </Anchor>
 

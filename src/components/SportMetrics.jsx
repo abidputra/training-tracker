@@ -15,6 +15,7 @@ import { WeeklyChart } from './StrengthMetrics.jsx';
 import TrendCard from './TrendCard.jsx';
 import { Empty, Icon, Note, RangePills, SectionHead } from './ui.jsx';
 import Count from './Count.jsx';
+import GlanceCarousel from './GlanceCarousel.jsx';
 
 const signed = (d, fmt) => `${d > 0 ? '+' : d < 0 ? '−' : ''}${fmt(Math.abs(d))}`;
 const sum = (list, f) => list.reduce((a, x) => a + f(x), 0);
@@ -36,17 +37,18 @@ function recordValue(def, r) {
   return def.speed ? { value: r.value.toFixed(1), unit: 'km/h' } : { value: paceSec(r.value), unit: def.per100 ? '/100m' : '/km' };
 }
 
-function GlanceCard({ label, value, unit, accent, chart, sub }) {
+function GlanceCard({ label, value, unit, accent, chart, sub, foot }) {
   return (
-    <div className="card flex flex-col justify-between gap-4 p-5 lg:gap-5 lg:p-6">
+    <div className="card flex h-full flex-col gap-3.5 p-5 lg:gap-5 lg:p-6">
       <div className="eyebrow">{label}</div>
-      <div className="flex items-baseline gap-2">
-        <span className={`num text-[40px] leading-[0.9] lg:text-[72px] ${accent ? 'text-accent' : ''}`}><Count text={value} /></span>
+      <div className="flex items-baseline gap-2.5">
+        <span className={`num text-[64px] leading-[0.9] lg:text-[72px] ${accent ? 'text-accent' : ''}`}><Count text={value} /></span>
         <span className="text-xs tracking-[0.12em] text-muted uppercase">{unit}</span>
       </div>
-      <div className="flex flex-col gap-2.5">
-        {chart && <DotGrid grid={chart} className="w-full max-w-[200px]" />}
-        <div className="text-xs text-muted">{sub}</div>
+      <div className="text-xs text-muted">{sub}</div>
+      <div className="mt-auto flex flex-col gap-2.5">
+        {chart && <DotGrid grid={chart} className="w-full lg:max-w-[200px]" />}
+        {foot && <div className="text-xs text-muted">{foot}</div>}
       </div>
     </div>
   );
@@ -87,30 +89,67 @@ export default function SportMetrics({ def, items, loading, error, onRetry, onOp
   return (
     <div className="flex flex-col gap-8 lg:gap-14">
       <Anchor id="glance">
-        <SectionHead n="01" title="At a Glance" small />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-          <GlanceCard
-            label="Weekly Distance"
-            value={wk.value}
-            unit={wk.unit}
-            accent
-            chart={bars(weeks8.map((w) => w.v), 5)}
-            sub={`This week · last week ${dist(def, lastWeek.v).value} ${wk.unit}`}
-          />
-          <GlanceCard label="Sessions" value={week.n} unit="this week" sub={`${last4} in the last 4 weeks`} />
-          <GlanceCard
-            label="Time"
-            value={duration(weekTime)}
-            unit="this week"
-            sub={week.n ? `Avg ${duration(weekTime / week.n)} per session` : 'No sessions yet this week'}
-          />
-          <GlanceCard
-            label="Longest"
-            value={longest ? dist(def, longest.value).value : '–'}
-            unit={longest ? wk.unit : ''}
-            sub={longest ? `${shortDate(longest.act.t)}` : ''}
-          />
-        </div>
+        <SectionHead n="01" title="At a Glance" />
+        <GlanceCarousel
+          cols="lg:grid-cols-4"
+          items={[
+            {
+              key: 'distance',
+              label: 'Weekly Distance',
+              node: (
+                <GlanceCard
+                  label="Weekly Distance"
+                  value={wk.value}
+                  unit={wk.unit}
+                  accent
+                  chart={bars(weeks8.map((w) => w.v), 7)}
+                  sub={`This week · last week ${dist(def, lastWeek.v).value} ${wk.unit}`}
+                  foot="Mon–Sun, last 8 weeks"
+                />
+              ),
+            },
+            {
+              key: 'sessions',
+              label: 'Sessions',
+              node: (
+                <GlanceCard
+                  label="Sessions"
+                  value={String(week.n)}
+                  unit="this week"
+                  sub={`${last4} in the last 4 weeks`}
+                  chart={weeks8.some((w) => w.n > 0) ? bars(weeks8.map((w) => w.n), 7) : null}
+                  foot="Sessions per week, last 8 weeks"
+                />
+              ),
+            },
+            {
+              key: 'time',
+              label: 'Time',
+              node: (
+                <GlanceCard
+                  label="Time"
+                  value={duration(weekTime)}
+                  unit="this week"
+                  sub={week.n ? `Avg ${duration(weekTime / week.n)} per session` : 'No sessions yet this week'}
+                  chart={weeks8.some((w) => w.sessions.length) ? bars(weeks8.map((w) => sum(w.sessions, (a) => a.time)), 7) : null}
+                  foot="Time per week, last 8 weeks"
+                />
+              ),
+            },
+            {
+              key: 'longest',
+              label: 'Longest',
+              node: (
+                <GlanceCard
+                  label="Longest"
+                  value={longest ? dist(def, longest.value).value : '–'}
+                  unit={longest ? wk.unit : ''}
+                  sub={longest ? `${shortDate(longest.act.t)}` : ''}
+                />
+              ),
+            },
+          ]}
+        />
       </Anchor>
 
       {recs.length > 0 && (

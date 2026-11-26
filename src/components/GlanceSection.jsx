@@ -6,12 +6,13 @@
  * An optional `pick(i)` makes the chart tappable: it returns the
  * { value, sub, badge? } to show for point i (tap the same point again to reset).
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getRuns } from '../lib/analysis.js';
 import { dayLabel, hoursMinutes, latest, recentHr, series, weeklyDistance } from '../lib/glance.js';
 import { bars, columns } from '../lib/dots.js';
 import DotGrid, { leaveBar, pickBar } from './DotGrid.jsx';
 import Count from './Count.jsx';
+import GlanceCarousel from './GlanceCarousel.jsx';
 
 // Statuses worth flagging get the accent; the rest stay white.
 const HRV_TONE = {
@@ -205,46 +206,10 @@ function GlanceCard({ card, data }) {
 export default function GlanceSection({ activities, days }) {
   const runs = useMemo(() => getRuns(activities), [activities]);
   const built = useMemo(() => CARDS.map((c) => ({ card: c, data: c.build({ runs, days }) })), [runs, days]);
-  const scroller = useRef(null);
-  const [active, setActive] = useState(0);
-
-  const onScroll = () => {
-    const el = scroller.current;
-    const card = el?.firstElementChild;
-    if (!card) return;
-    setActive(Math.round(el.scrollLeft / (card.offsetWidth + 12)));
-  };
-
-  const goTo = (i) => {
-    const el = scroller.current;
-    const card = el?.children[i];
-    if (card) el.scrollTo({ left: card.offsetLeft - 16, behavior: 'smooth' }); // 16 = px-4 gutter
-  };
-
-  return (
-    <div>
-      {/* phone: swipeable carousel; desktop: all cards in a row */}
-      <div
-        ref={scroller}
-        onScroll={onScroll}
-        className="no-scrollbar relative -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:px-0"
-      >
-        {built.map(({ card, data }) => (
-          <div key={card.id} className="w-[min(300px,80%)] shrink-0 snap-start lg:w-auto">
-            <GlanceCard card={card} data={data} />
-          </div>
-        ))}
-      </div>
-      <div className="mt-3.5 flex justify-center gap-2 lg:hidden">
-        {built.map(({ card }, i) => (
-          <button
-            key={card.id}
-            aria-label={`Show ${card.label}`}
-            onClick={() => goTo(i)}
-            className={`h-2 w-2 rounded-full ${i === active ? 'bg-accent' : 'bg-line-strong'}`}
-          />
-        ))}
-      </div>
-    </div>
-  );
+  const items = built.map(({ card, data }) => ({
+    key: card.id,
+    label: card.label,
+    node: <GlanceCard card={card} data={data} />,
+  }));
+  return <GlanceCarousel items={items} cols="lg:grid-cols-4" />;
 }
