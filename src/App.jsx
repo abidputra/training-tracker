@@ -153,6 +153,7 @@ export default function App() {
     }
   }, [onboardKey]);
   useEffect(() => {
+    setOnboarding(false); // a new account starts clean; the answer below decides again
     if (!onboardKey || !connectionsLoaded) return;
     let seen = false;
     try {
