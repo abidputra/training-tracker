@@ -125,6 +125,7 @@ export default function Connections({ connections, onNotice, onChanged, onSynced
             </button>
           </div>
         )}
+        <p className="m-0 text-xs tracking-[0.12em] text-muted uppercase">Powered by Strava</p>
       </div>
       )}
 

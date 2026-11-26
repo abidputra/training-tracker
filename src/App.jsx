@@ -198,8 +198,8 @@ export default function App() {
     stravaHandled.current = true;
     window.history.replaceState({}, '', window.location.pathname); // drop code from the URL
 
-    const expected = sessionStorage.getItem('strava_oauth_state');
-    sessionStorage.removeItem('strava_oauth_state');
+    const expected = localStorage.getItem('strava_oauth_state');
+    localStorage.removeItem('strava_oauth_state');
     if (!expected || state !== expected) {
       setNotice({ type: 'error', text: 'Strava login could not be verified. Please try again.' });
       return;
