@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import { applyAccent, cacheAccent, cachedAccent } from './lib/accent.js';
-import { STRAVA_ENABLED, garminApi } from './lib/api.js';
+import { STRAVA_ENABLED, garminApi, startStravaOAuth } from './lib/api.js';
 import { DISTANCE_SPORTS, sportsPresent } from './lib/sports.js';
 import { strengthSessions } from './lib/strength.js';
 import { useSession } from './hooks/useSession.js';
@@ -405,6 +405,14 @@ export default function App() {
             closeOnboarding();
             changeView('settings');
           }}
+          onStrava={
+            STRAVA_ENABLED
+              ? () => {
+                  markOnboarded(); // the page is about to leave for Strava: don't show this sheet again on return
+                  startStravaOAuth();
+                }
+              : undefined
+          }
         />
       )}
 

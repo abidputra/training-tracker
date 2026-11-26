@@ -3,7 +3,8 @@
  * sign-in. Phones: a bottom sheet over the empty dashboard. Desktop: a centred
  * 560px dialog.
  *
- *   step 1  connect Garmin (the real GarminForm opens in place), or skip
+ *   step 1  connect Garmin (the real GarminForm opens in place), Strava (when `onStrava` is given:
+ *           it leaves for Strava's login and comes back to the app), or skip
  *   step 2  connected: points to Settings > Connections > Import all
  *
  * `onClose` is called for skip, done and Esc; `onSettings` for "Go to Settings".
@@ -36,7 +37,7 @@ function Check() {
 
 const heading = 'm-0 font-dot text-[30px] leading-[1.05] font-black tracking-[0.02em] uppercase lg:text-[40px]';
 
-export default function OnboardConnect({ onClose, onSettings, onConnected }) {
+export default function OnboardConnect({ onClose, onSettings, onConnected, onStrava }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(false);
 
@@ -79,6 +80,18 @@ export default function OnboardConnect({ onClose, onSettings, onConnected }) {
               </span>
             </div>
 
+            {onStrava && (
+              <div className="card flex items-center justify-between gap-3 px-5 py-[18px]">
+                <div className="flex flex-col gap-1">
+                  <span className="font-dot text-[28px] leading-none font-black">Strava</span>
+                  <span className="text-xs text-muted">Older runs and history</span>
+                </div>
+                <span className="flex-none rounded-full border border-line-strong px-3 py-1.5 text-xs tracking-[0.1em] whitespace-nowrap text-muted uppercase">
+                  Not connected
+                </span>
+              </div>
+            )}
+
             {form ? (
               <GarminForm
                 onCancel={() => setForm(false)}
@@ -92,6 +105,11 @@ export default function OnboardConnect({ onClose, onSettings, onConnected }) {
                 <button onClick={() => setForm(true)} className="btn-primary min-h-[52px]">
                   Connect Garmin
                 </button>
+                {onStrava && (
+                  <button onClick={onStrava} className="btn min-h-[52px]">
+                    Connect Strava
+                  </button>
+                )}
                 <button onClick={onClose} className="flex min-h-12 items-center justify-center rounded-full text-[13px] text-muted">
                   Skip for now
                 </button>
