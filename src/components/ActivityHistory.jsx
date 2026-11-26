@@ -1,7 +1,8 @@
 /**
  * Activity History: every imported activity as a card, newest first, grouped by
  * month. A row of sport chips (with counts) narrows the list to one kind of
- * activity. Tapping a card opens ActivityDetail. Cards show only the summary
+ * activity, and a second row to one source (Garmin or Strava) when there is more
+ * than one. Tapping a card opens ActivityDetail. Cards show only the summary
  * columns, so the list stays light even with a long history.
  */
 import { useEffect, useMemo, useState } from 'react';
@@ -29,8 +30,13 @@ function groupByMonth(items) {
   return groups;
 }
 
-/** "All" plus one chip per sport present, most frequent first. */
-function Chips({ families, total, value, onChange }) {
+const SOURCES = [
+  { key: 'garmin', label: 'Garmin' },
+  { key: 'strava', label: 'Strava' },
+];
+
+/** "All" plus one chip per sport present (or per source), most frequent first. */
+function Chips({ families, total, value, onChange, allLabel = 'All' }) {
   const chip = (key, label, count, active) => (
     <button key={key} onClick={() => onChange(key)} aria-pressed={active} className={active ? 'pill-on' : 'pill'}>
       {label} {count}
@@ -38,19 +44,26 @@ function Chips({ families, total, value, onChange }) {
   );
   return (
     <>
-      {chip('all', 'All', total, value === 'all')}
+      {chip('all', allLabel, total, value === 'all')}
       {families.map((f) => chip(f.key, f.label, f.count, value === f.key))}
     </>
   );
 }
 
-/** Phone: sticky chip row under the page title. */
-function SportFilter(props) {
+/** Phone: sticky chip rows under the page title: the source (when there is more than one), then the sport. */
+function SportFilter({ sourceProps, ...props }) {
   return (
-    <nav aria-label="Filter by sport" className="sticky z-30 -mx-4 mb-3 bg-black py-1 lg:hidden" style={{ top: 'var(--top-inset)' }}>
-      <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-1">
-        <Chips {...props} />
-      </div>
+    <nav aria-label="Filter activities" className="sticky z-30 -mx-4 mb-3 bg-black py-1 lg:hidden" style={{ top: 'var(--top-inset)' }}>
+      {sourceProps && (
+        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-1" role="group" aria-label="Filter by source">
+          <Chips {...sourceProps} allLabel="All sources" />
+        </div>
+      )}
+      {props.families.length > 1 && (
+        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-1" role="group" aria-label="Filter by sport">
+          <Chips {...props} />
+        </div>
+      )}
     </nav>
   );
 }
@@ -120,23 +133,39 @@ export default function ActivityHistory({ items, loading, error, onRetry }) {
   const [open, setOpen] = useState(null); // the activity whose detail is showing
   const [sport, setSport] = useState('all'); // 'all' or a sport family key
 
-  // Sports present in the history, most frequent first.
+  const [source, setSource] = useState('all'); // 'all' or a provider key
+
+  // Sources present, most frequent first. Only worth a filter when there is more than one.
+  const sources = useMemo(() => {
+    const counts = {};
+    for (const a of items) counts[a.provider] = (counts[a.provider] ?? 0) + 1;
+    return SOURCES.filter((x) => counts[x.key])
+      .map((x) => ({ ...x, count: counts[x.key] }))
+      .sort((x, y) => y.count - x.count);
+  }, [items]);
+  const activeSource = sources.length > 1 && sources.some((x) => x.key === source) ? source : 'all';
+  const fromSource = useMemo(
+    () => (activeSource === 'all' ? items : items.filter((a) => a.provider === activeSource)),
+    [items, activeSource],
+  );
+
+  // Sports present in the chosen source, most frequent first.
   const families = useMemo(() => {
     const counts = {};
-    for (const a of items) {
+    for (const a of fromSource) {
       const k = sportFamily(a.sport_type);
       counts[k] = (counts[k] ?? 0) + 1;
     }
     return SPORT_FAMILIES.filter((f) => counts[f.key])
       .map((f) => ({ ...f, count: counts[f.key] }))
       .sort((a, b) => b.count - a.count);
-  }, [items]);
+  }, [fromSource]);
 
-  // A sport that disappeared after a reload falls back to "All".
+  // A sport that disappeared after a reload or a source change falls back to "All".
   const active = families.some((f) => f.key === sport) ? sport : 'all';
   const visible = useMemo(
-    () => (active === 'all' ? items : items.filter((a) => sportFamily(a.sport_type) === active)),
-    [items, active],
+    () => (active === 'all' ? fromSource : fromSource.filter((a) => sportFamily(a.sport_type) === active)),
+    [fromSource, active],
   );
   const groups = useMemo(() => groupByMonth(visible), [visible]);
 
@@ -160,7 +189,8 @@ export default function ActivityHistory({ items, loading, error, onRetry }) {
   }
   if (items.length === 0) return <Empty>No activities yet. Connect Garmin in Settings to import your history.</Empty>;
 
-  const filterProps = { families, total: items.length, value: active, onChange: setSport };
+  const filterProps = { families, total: fromSource.length, value: active, onChange: setSport };
+  const sourceProps = sources.length > 1 ? { families: sources, total: items.length, value: activeSource, onChange: setSource } : null;
 
   return (
     <div>
@@ -168,16 +198,25 @@ export default function ActivityHistory({ items, loading, error, onRetry }) {
       <div className="mb-10 hidden flex-wrap items-end justify-between gap-x-6 gap-y-5 lg:flex">
         <h1 className="m-0 font-dot text-[64px] leading-[0.95] font-black tracking-[0.02em] uppercase">Activity History</h1>
         {/* wraps under the title when there are too many sports to fit beside it, instead of running past the content edge */}
-        {families.length > 1 && (
-          <div className="flex min-w-0 flex-wrap gap-2">
-            <Chips {...filterProps} />
+        {(sourceProps || families.length > 1) && (
+          <div className="flex min-w-0 flex-col items-end gap-2">
+            {sourceProps && (
+              <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label="Filter by source">
+                <Chips {...sourceProps} allLabel="All sources" />
+              </div>
+            )}
+            {families.length > 1 && (
+              <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label="Filter by sport">
+                <Chips {...filterProps} />
+              </div>
+            )}
           </div>
         )}
       </div>
-      {families.length > 1 && <SportFilter {...filterProps} />}
+      {(sourceProps || families.length > 1) && <SportFilter {...filterProps} sourceProps={sourceProps} />}
       <div className="flex flex-col gap-5">
         <p className="m-0 text-xs text-muted lg:hidden">
-          {active === 'all' ? `${items.length} activities` : `${visible.length} of ${items.length} activities`}
+          {visible.length === items.length ? `${items.length} activities` : `${visible.length} of ${items.length} activities`}
         </p>
         {groups.map((g) => (
           <section key={g.label} className="flex flex-col gap-3">
