@@ -91,7 +91,7 @@ export default function AuthForm({ initialMode = 'signin', onBack }) {
         <br />
         Training Tracker
       </h1>
-      <p className="m-0 mb-8 text-sm text-muted">Your Garmin training, one live page.</p>
+      <p className="m-0 mb-8 text-sm text-muted">Your training, on one place.</p>
 
       <form onSubmit={submit} className="flex flex-col gap-2.5">
         {mode === 'signin' ? (

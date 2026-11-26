@@ -144,14 +144,14 @@ export default function Landing({ onStart, onSignIn }) {
           <h1 className="m-0 font-dot text-[46px] leading-[0.98] font-black tracking-[0.01em] uppercase lg:text-[88px]">
             Your training,
             <br />
-            on one page.
+            on one place.
           </h1>
           <p className="m-0 max-w-[520px] text-[15px] leading-[1.7] text-[#c8c8c8] lg:text-[17px]">
-            Training Tracker pulls your runs and lifts from the apps and watches you already use into one clean dashboard.
+            Training Tracker pulls your runs, lifts and other activities from the apps and watches you already use into one clean dashboard.
             Pace, trends, personal bests and muscle work, without the app-hopping.
           </p>
           <Cta onStart={onStart} onSignIn={onSignIn} />
-          <span className="text-xs text-muted">Free while we are small. Works on your phone and your laptop.</span>
+          {/* <span className="text-xs text-muted">Free while we are small. Works on your phone and your laptop.</span> */}
         </div>
 
         <div className="flex flex-col gap-[18px] rounded-3xl border border-line bg-black p-5 lg:p-7">
